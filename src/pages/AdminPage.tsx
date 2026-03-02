@@ -86,7 +86,10 @@ export default function AdminPage() {
     setLoading(false);
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = (selectedArticles: string[]) => {
+    const toprint = products.filter((p) => selectedArticles.includes(p.article));
+    if (toprint.length === 0) return;
+
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
     const pageW = 210;
@@ -109,7 +112,7 @@ export default function AdminPage() {
     const startX = (pageW - gridW) / 2;
     const startY = (pageH - gridH) / 2;
 
-    for (let i = 0; i < products.length; i++) {
+    for (let i = 0; i < toprint.length; i++) {
       if (i > 0 && i % perPage === 0) doc.addPage();
       const pos = i % perPage;
       const col = pos % cols;
@@ -123,7 +126,7 @@ export default function AdminPage() {
       doc.rect(x, y, cellW, cellH);
       doc.setLineDashPattern([], 0);
 
-      const canvas = qrRefs.current[products[i].article];
+      const canvas = qrRefs.current[toprint[i].article];
       if (canvas) {
         doc.addImage(canvas.toDataURL("image/png"), "PNG", x + cellPad, y + cellPad, qrSize, qrSize);
       }
@@ -131,7 +134,7 @@ export default function AdminPage() {
       doc.setFontSize(6);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(47, 79, 79);
-      doc.text(products[i].article, x + cellW / 2, y + cellPad + qrSize + 4, {
+      doc.text(toprint[i].article, x + cellW / 2, y + cellPad + qrSize + 4, {
         align: "center",
         maxWidth: cellW - 2,
       });
