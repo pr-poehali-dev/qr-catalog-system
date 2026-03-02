@@ -172,43 +172,69 @@ export default function AdminPage() {
 
   const handleDownloadPDF = async () => {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const pageW = 210;
-    const margin = 10;
-    const cols = 3;
-    const rows = 5;
-    const cellW = (pageW - margin * 2) / cols;
-    const cellH = 53;
-    const qrSize = 30;
 
-    let pageItemCount = 0;
-    let page = 1;
+    // A4: 210×297 мм
+    // Ячейка: QR 30×30 мм + подпись ~6 мм + отступ = ~38 мм высота, ~36 мм ширина
+    const pageW = 210;
+    const pageH = 297;
+    const margin = 8;        // поля страницы
+    const qrSize = 30;       // размер QR кода
+    const labelH = 6;        // высота подписи под QR
+    const cellPad = 3;       // отступ внутри рамки
+    const gap = 2;           // зазор между ячейками
+
+    // Размер ячейки с рамкой
+    const cellW = qrSize + cellPad * 2;
+    const cellH = qrSize + labelH + cellPad * 2;
+
+    const cols = Math.floor((pageW - margin * 2 + gap) / (cellW + gap));
+    const rows = Math.floor((pageH - margin * 2 + gap) / (cellH + gap));
+    const perPage = cols * rows;
+
+    // Общий шаг
+    const stepX = cellW + gap;
+    const stepY = cellH + gap;
+
+    // Центрируем сетку на странице
+    const gridW = cols * cellW + (cols - 1) * gap;
+    const gridH = rows * cellH + (rows - 1) * gap;
+    const startX = (pageW - gridW) / 2;
+    const startY = (pageH - gridH) / 2;
 
     for (let i = 0; i < products.length; i++) {
-      if (i > 0 && i % (cols * rows) === 0) {
-        doc.addPage();
-        page++;
-        pageItemCount = 0;
-      }
+      if (i > 0 && i % perPage === 0) doc.addPage();
 
-      const col = pageItemCount % cols;
-      const row = Math.floor(pageItemCount / cols);
-      const x = margin + col * cellW + (cellW - qrSize) / 2;
-      const y = margin + row * cellH;
+      const pos = i % perPage;
+      const col = pos % cols;
+      const row = Math.floor(pos / cols);
 
+      const x = startX + col * stepX;
+      const y = startY + row * stepY;
+
+      // Рамка для отреза — тонкая пунктирная линия
+      doc.setDrawColor(180, 180, 180);
+      doc.setLineWidth(0.2);
+      doc.setLineDashPattern([1, 1], 0);
+      doc.rect(x, y, cellW, cellH);
+      doc.setLineDashPattern([], 0);
+
+      // QR код
       const canvas = qrRefs.current[products[i].article];
       if (canvas) {
         const imgData = canvas.toDataURL("image/png");
-        doc.addImage(imgData, "PNG", x, y, qrSize, qrSize);
+        doc.addImage(imgData, "PNG", x + cellPad, y + cellPad, qrSize, qrSize);
       }
 
-      doc.setFontSize(8);
+      // Артикул под QR
+      doc.setFontSize(6);
       doc.setFont("helvetica", "bold");
-      doc.text(products[i].article, margin + col * cellW + cellW / 2, y + qrSize + 5, {
-        align: "center",
-        maxWidth: cellW - 2,
-      });
-
-      pageItemCount++;
+      doc.setTextColor(47, 79, 79);
+      doc.text(
+        products[i].article,
+        x + cellW / 2,
+        y + cellPad + qrSize + 4,
+        { align: "center", maxWidth: cellW - 2 }
+      );
     }
 
     doc.save("qr-codes.pdf");

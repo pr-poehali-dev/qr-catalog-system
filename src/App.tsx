@@ -19,15 +19,17 @@ function AppRoutes() {
 
   if (isAdmin) {
     return (
-      <Routes>
-        <Route path="/admin" element={<AdminPage />} />
-      </Routes>
+      <PasswordGate mode="admin">
+        <Routes>
+          <Route path="/admin" element={<AdminPage />} />
+        </Routes>
+      </PasswordGate>
     );
   }
 
   if (isProduct) {
     return (
-      <PasswordGate>
+      <PasswordGate mode="catalog">
         <Routes>
           <Route path="/" element={<ProductCard />} />
         </Routes>
