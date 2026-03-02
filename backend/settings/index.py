@@ -1,8 +1,8 @@
 """
 Управление настройками каталога.
-POST ?action=check  — проверить пароль: {password: "..."}
-POST ?action=update — сменить пароль: {password: "..."}
-GET  /              — получить текущий пароль (для отображения в админке)
+POST ?action=check  — проверить пароль: {password: "..."} → {ok, session_version}
+POST ?action=update — сменить пароль: {password: "..."} → инкрементирует session_version
+GET  /              — получить пароль и session_version (для админки)
 """
 
 import json
@@ -20,6 +20,20 @@ def get_db():
     return psycopg2.connect(os.environ["DATABASE_URL"])
 
 
+def get_setting(cur, schema, key, default=""):
+    cur.execute(f"SELECT value FROM \"{schema}\".settings WHERE key = '{key}'")
+    row = cur.fetchone()
+    return row[0] if row else default
+
+
+def set_setting(cur, schema, key, value):
+    value_esc = value.replace("'", "''")
+    cur.execute(
+        f"INSERT INTO \"{schema}\".settings (key, value) VALUES ('{key}', '{value_esc}') "
+        f"ON CONFLICT (key) DO UPDATE SET value = '{value_esc}', updated_at = NOW()"
+    )
+
+
 def handler(event: dict, context) -> dict:
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
@@ -29,23 +43,22 @@ def handler(event: dict, context) -> dict:
     params = event.get("queryStringParameters") or {}
     action = params.get("action", "")
 
-    # POST ?action=check — проверить пароль
+    # POST ?action=check — проверить пароль, вернуть версию сессии
     if method == "POST" and action == "check":
         body = json.loads(event.get("body") or "{}")
         password = body.get("password", "")
 
         conn = get_db()
         cur = conn.cursor()
-        cur.execute(f"SELECT value FROM \"{schema}\".settings WHERE key = 'catalog_password'")
-        row = cur.fetchone()
+        stored = get_setting(cur, schema, "catalog_password", "2024")
+        version = get_setting(cur, schema, "session_version", "1")
         conn.close()
 
-        stored = row[0] if row else "2024"
         if password == stored:
-            return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
+            return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True, "session_version": version})}
         return {"statusCode": 403, "headers": CORS, "body": json.dumps({"ok": False})}
 
-    # POST ?action=update — сменить пароль
+    # POST ?action=update — сменить пароль + инкремент версии сессии
     if method == "POST" and action == "update":
         body = json.loads(event.get("body") or "{}")
         new_password = body.get("password", "").strip()
@@ -53,26 +66,28 @@ def handler(event: dict, context) -> dict:
         if not new_password:
             return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "password required"})}
 
-        new_password_esc = new_password.replace("'", "''")
         conn = get_db()
         cur = conn.cursor()
-        cur.execute(
-            f"INSERT INTO \"{schema}\".settings (key, value) VALUES ('catalog_password', '{new_password_esc}') "
-            f"ON CONFLICT (key) DO UPDATE SET value = '{new_password_esc}', updated_at = NOW()"
-        )
+        set_setting(cur, schema, "catalog_password", new_password)
+
+        # Инкрементируем версию сессии — все старые куки станут невалидными
+        old_version = get_setting(cur, schema, "session_version", "1")
+        new_version = str(int(old_version) + 1)
+        set_setting(cur, schema, "session_version", new_version)
+
         conn.commit()
         conn.close()
 
-        return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
+        return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True, "session_version": new_version})}
 
-    # GET — получить текущий пароль (для отображения в админке)
+    # GET — получить пароль и версию сессии
     if method == "GET":
         conn = get_db()
         cur = conn.cursor()
-        cur.execute(f"SELECT value FROM \"{schema}\".settings WHERE key = 'catalog_password'")
-        row = cur.fetchone()
+        password = get_setting(cur, schema, "catalog_password", "2024")
+        version = get_setting(cur, schema, "session_version", "1")
         conn.close()
 
-        return {"statusCode": 200, "headers": CORS, "body": json.dumps({"password": row[0] if row else "2024"})}
+        return {"statusCode": 200, "headers": CORS, "body": json.dumps({"password": password, "session_version": version})}
 
     return {"statusCode": 405, "headers": CORS, "body": json.dumps({"error": "method not allowed"})}

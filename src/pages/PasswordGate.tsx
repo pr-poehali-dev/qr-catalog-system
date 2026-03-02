@@ -13,7 +13,7 @@ const COOKIES = {
   catalog: "catalog_auth",
   admin: "admin_auth",
 };
-
+const VERSION_COOKIE = "catalog_session_ver";
 const COOKIE_DAYS = 30;
 
 function setCookie(name: string, value: string, days: number) {
@@ -37,9 +37,31 @@ export default function PasswordGate({ children, mode }: PasswordGateProps) {
   const [showPass, setShowPass] = useState(false);
 
   useEffect(() => {
-    const cookie = getCookie(COOKIES[mode]);
-    if (cookie === "ok") setAuthenticated(true);
-    setChecking(false);
+    const authCookie = getCookie(COOKIES[mode]);
+
+    if (!authCookie || authCookie !== "ok") {
+      setChecking(false);
+      return;
+    }
+
+    if (mode === "catalog") {
+      // Сверяем версию сессии с сервером
+      fetch(SETTINGS_URL)
+        .then((r) => r.json())
+        .then((d) => {
+          const serverVersion = String(d.session_version ?? "1");
+          const localVersion = getCookie(VERSION_COOKIE);
+          if (localVersion === serverVersion) {
+            setAuthenticated(true);
+          }
+          // иначе пароль был сменён — показываем форму
+        })
+        .catch(() => setAuthenticated(true)) // при ошибке сети пускаем
+        .finally(() => setChecking(false));
+    } else {
+      setAuthenticated(true);
+      setChecking(false);
+    }
   }, [mode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,20 +70,23 @@ export default function PasswordGate({ children, mode }: PasswordGateProps) {
     setSubmitting(true);
 
     let ok = false;
+    let sessionVersion = "1";
 
     if (mode === "admin") {
       ok = input === ADMIN_PASSWORD;
     } else {
-      // Проверяем пароль каталога через сервер
       try {
         const resp = await fetch(`${SETTINGS_URL}?action=check`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ password: input }),
         });
-        ok = resp.ok;
+        if (resp.ok) {
+          const data = await resp.json();
+          ok = data.ok;
+          sessionVersion = String(data.session_version ?? "1");
+        }
       } catch {
-        // Если сервер недоступен — не пускаем
         ok = false;
       }
     }
@@ -70,6 +95,9 @@ export default function PasswordGate({ children, mode }: PasswordGateProps) {
 
     if (ok) {
       setCookie(COOKIES[mode], "ok", COOKIE_DAYS);
+      if (mode === "catalog") {
+        setCookie(VERSION_COOKIE, sessionVersion, COOKIE_DAYS);
+      }
       setAuthenticated(true);
       setError(false);
     } else {
@@ -144,9 +172,9 @@ export default function PasswordGate({ children, mode }: PasswordGateProps) {
             className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
             style={{ background: "#2F4F4F" }}
           >
-            {submitting ? (
-              <><div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Проверяю...</>
-            ) : "Войти"}
+            {submitting
+              ? <><div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Проверяю...</>
+              : "Войти"}
           </button>
         </form>
       </div>

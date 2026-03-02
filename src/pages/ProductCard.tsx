@@ -95,12 +95,13 @@ export default function ProductCard() {
           </h1>
         </div>
 
-        {/* Photo — 30% высоты карточки */}
+        {/* Photo — 36% высоты карточки */}
         <div
-          className="w-full flex-shrink-0 bg-gray-50 flex items-center justify-center overflow-hidden"
+          className="w-full flex-shrink-0 bg-gray-50 flex items-center justify-center"
           style={{
-            height: "30%",
+            height: "36%",
             borderBottom: "2px solid #2F4F4F",
+            padding: "12px 0",
           }}
         >
           {hasPhoto ? (
