@@ -107,6 +107,26 @@ export function buildProducts(
   });
 }
 
+// Сжимаем изображение через Canvas до нужного размера (макс 800px, качество 0.7)
+async function compressImage(dataUrl: string, maxPx = 800, quality = 0.75): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 // Отправляем товары без фото, потом фото по одному отдельными запросами
 export async function saveToServer(
   products: ProductRow[],
@@ -135,21 +155,25 @@ export async function saveToServer(
     throw new Error(err.error || `Ошибка сервера ${saveResp.status}`);
   }
 
-  // Шаг 2: загружаем фото по одному
+  // Шаг 2: загружаем фото по одному со сжатием
   const withPhoto = products.filter((p) => p.photo);
   for (let i = 0; i < withPhoto.length; i++) {
     const p = withPhoto[i];
     onProgress?.(`Загружаю фото ${i + 1} из ${withPhoto.length}...`);
+
+    // Сжимаем перед отправкой
+    const compressed = await compressImage(p.photo!);
+
     const photoResp = await fetch(PRODUCTS_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         products: [{ article: p.article, category: p.category, params: p.params, price: p.price, gallery: p.gallery }],
-        photos: { [p.article]: p.photo },
+        photos: { [p.article]: compressed },
       }),
     });
     if (!photoResp.ok) {
-      console.warn(`Не удалось загрузить фото для ${p.article}`);
+      console.warn(`Не удалось загрузить фото для ${p.article}: ${photoResp.status}`);
     }
   }
 }
