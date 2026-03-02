@@ -73,17 +73,17 @@ export async function getPhoto(article: string): Promise<string | null> {
     const reqKeys = store.getAllKeys();
     reqKeys.onsuccess = () => {
       const allKeys = reqKeys.result as string[];
-      const artClean = article.toLowerCase().replace(/\//g, "-").replace(/\s/g, "");
-      const artNorm = article.toLowerCase().replace(/[\s_]/g, "-");
+      const artVariants = [
+        article.toLowerCase(),
+        article.toLowerCase().replace(/\//g, "-"),
+        article.toLowerCase().replace(/\//g, "_"),
+        article.toLowerCase().replace(/[^a-z0-9а-яё]/gi, ""),
+        article.toLowerCase().replace(/[^a-z0-9а-яё]/gi, "-"),
+      ].filter(Boolean);
 
       const matched = allKeys.find((k) => {
         const kn = k.toLowerCase();
-        return (
-          kn.includes(artClean) ||
-          artClean.includes(kn) ||
-          kn.includes(artNorm) ||
-          artNorm.includes(kn)
-        );
+        return artVariants.some((v) => kn.includes(v) || v.includes(kn));
       });
 
       if (!matched) {

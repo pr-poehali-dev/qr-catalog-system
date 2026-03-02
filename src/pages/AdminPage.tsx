@@ -114,16 +114,21 @@ export default function AdminPage() {
         let foundPhoto: string | undefined;
         let hasPhoto = false;
 
+        // Варианты написания артикула для поиска по имени файла
+        const artVariants = [
+          article.toLowerCase(),
+          article.toLowerCase().replace(/\//g, "-"),
+          article.toLowerCase().replace(/\//g, "_"),
+          article.toLowerCase().replace(/[^a-z0-9а-яё]/gi, ""),
+          article.toLowerCase().replace(/[^a-z0-9а-яё]/gi, "-"),
+        ].filter(Boolean);
+
         for (const [key, dataUrl] of Object.entries(photoMap)) {
-          // Ищем совпадение: имя файла содержит артикул или наоборот
           const keyNorm = key.toLowerCase();
-          const artClean = article.toLowerCase().replace(/\//g, "-").replace(/\s/g, "");
-          if (
-            keyNorm.includes(artClean) ||
-            artClean.includes(keyNorm) ||
-            keyNorm.includes(articleNorm) ||
-            articleNorm.includes(keyNorm)
-          ) {
+          const matched = artVariants.some(
+            (v) => keyNorm.includes(v) || v.includes(keyNorm)
+          );
+          if (matched) {
             foundPhoto = dataUrl;
             hasPhoto = true;
             break;

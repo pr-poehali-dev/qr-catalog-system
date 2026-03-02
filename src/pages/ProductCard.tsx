@@ -127,10 +127,13 @@ export default function ProductCard() {
             Цена (опт)
           </p>
           <p className="text-3xl font-bold tracking-tight" style={{ color: "#2F4F4F" }}>
-            {Number(product.price).toLocaleString("ru-RU", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}{" "}
+            {(() => {
+              const cleaned = String(product.price).replace(/\s/g, "").replace(",", ".");
+              const num = parseFloat(cleaned);
+              return isNaN(num)
+                ? product.price
+                : num.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            })()}{" "}
             <span className="text-base font-medium">₽</span>
           </p>
         </div>
