@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import Icon from "@/components/ui/icon";
+import { getProduct, getPhoto } from "@/lib/catalogDB";
 
 interface Product {
   category: string;
@@ -9,15 +10,6 @@ interface Product {
   price: string;
   gallery: string;
   photo?: string;
-}
-
-function getStoredProducts(): Record<string, Product> {
-  try {
-    const raw = localStorage.getItem("catalog_products");
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
 }
 
 export default function ProductCard() {
@@ -32,13 +24,15 @@ export default function ProductCard() {
       setNotFound(true);
       return;
     }
-    const products = getStoredProducts();
-    const found = products[article];
-    if (found) {
-      setProduct(found);
-    } else {
-      setNotFound(true);
-    }
+    (async () => {
+      const found = await getProduct(article);
+      if (!found) {
+        setNotFound(true);
+        return;
+      }
+      const photo = await getPhoto(article);
+      setProduct({ ...found, photo: photo ?? undefined });
+    })();
   }, [article]);
 
   if (notFound) {

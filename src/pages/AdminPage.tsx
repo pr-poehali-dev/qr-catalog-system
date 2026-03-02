@@ -4,6 +4,7 @@ import JSZip from "jszip";
 import { QRCodeCanvas } from "qrcode.react";
 import jsPDF from "jspdf";
 import Icon from "@/components/ui/icon";
+import { saveProducts } from "@/lib/catalogDB";
 
 interface ProductRow {
   article: string;
@@ -141,18 +142,17 @@ export default function AdminPage() {
         };
       });
 
-      const storageData: Record<string, object> = {};
-      result.forEach((p) => {
-        storageData[p.article] = {
+      // Сохраняем данные товаров и фото в IndexedDB (без ограничений по размеру)
+      await saveProducts(
+        result.map((p) => ({
           article: p.article,
           category: p.category,
           params: p.params,
           price: p.price,
           gallery: p.gallery,
-          photo: p.photo,
-        };
-      });
-      localStorage.setItem("catalog_products", JSON.stringify(storageData));
+        })),
+        photoMap
+      );
 
       setProducts(result);
       setStep("result");
