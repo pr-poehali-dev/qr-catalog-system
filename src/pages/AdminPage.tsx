@@ -11,6 +11,8 @@ import {
   saveToServer,
 } from "@/lib/processFiles";
 
+export const CATALOG_PASSWORD_KEY = "catalog_password";
+
 export default function AdminPage() {
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [step, setStep] = useState<"upload" | "result">("upload");
@@ -19,6 +21,18 @@ export default function AdminPage() {
   const [zipFile, setZipFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const qrRefs = useRef<Record<string, HTMLCanvasElement | null>>({});
+
+  // Смена пароля каталога
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordSaved, setPasswordSaved] = useState(false);
+
+  const handleSavePassword = () => {
+    if (!newPassword.trim()) return;
+    localStorage.setItem(CATALOG_PASSWORD_KEY, newPassword.trim());
+    setPasswordSaved(true);
+    setNewPassword("");
+    setTimeout(() => setPasswordSaved(false), 2000);
+  };
 
   const handleProcess = async () => {
     if (!csvFile) { setError("Загрузите файл Excel или CSV"); return; }
@@ -137,7 +151,7 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-10">
         {step === "upload" && (
           <UploadStep
             csvFile={csvFile}
@@ -157,6 +171,44 @@ export default function AdminPage() {
             onDownloadPDF={handleDownloadPDF}
           />
         )}
+
+        {/* Смена пароля каталога */}
+        <div
+          className="border rounded-xl p-5 space-y-3"
+          style={{ borderColor: "rgba(47,79,79,0.12)" }}
+        >
+          <div>
+            <p className="text-sm font-semibold" style={{ color: "#2F4F4F" }}>
+              Пароль для просмотра каталога
+            </p>
+            <p className="text-xs text-gray-400 font-ibm mt-0.5">
+              Текущий пароль: <span className="font-medium text-gray-600">{localStorage.getItem(CATALOG_PASSWORD_KEY) || "2024"}</span>
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSavePassword()}
+              placeholder="Новый пароль"
+              className="flex-1 px-3 py-2 rounded-lg border text-sm font-ibm outline-none transition-all focus:border-[#2F4F4F]"
+              style={{ borderColor: "#c8d8d8", color: "#2F4F4F" }}
+            />
+            <button
+              onClick={handleSavePassword}
+              disabled={!newPassword.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium transition-all hover:opacity-90 disabled:opacity-40"
+              style={{ background: "#2F4F4F" }}
+            >
+              {passwordSaved ? (
+                <><Icon name="Check" size={14} /> Сохранено</>
+              ) : (
+                <><Icon name="KeyRound" size={14} /> Сохранить</>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

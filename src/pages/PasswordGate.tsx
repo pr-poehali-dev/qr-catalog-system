@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
+import { CATALOG_PASSWORD_KEY } from "./AdminPage";
 
 interface PasswordGateProps {
   children: React.ReactNode;
   mode: "catalog" | "admin";
 }
 
-const PASSWORDS = {
-  catalog: "2024",
-  admin: "Pizza999i$%jw-rt188!",
-};
+const ADMIN_PASSWORD = "Pizza999i$%jw-rt188!";
+
+function getCatalogPassword(): string {
+  return localStorage.getItem(CATALOG_PASSWORD_KEY) || "2024";
+}
 
 const COOKIES = {
   catalog: "catalog_auth",
@@ -45,7 +47,8 @@ export default function PasswordGate({ children, mode }: PasswordGateProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input === PASSWORDS[mode]) {
+    const correctPassword = mode === "admin" ? ADMIN_PASSWORD : getCatalogPassword();
+    if (input === correctPassword) {
       setCookie(COOKIES[mode], "ok", COOKIE_DAYS);
       setAuthenticated(true);
       setError(false);

@@ -69,30 +69,37 @@ export default function ProductCard() {
   const hasPhoto = !!product.photo_url && !imgError;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center font-golos p-0 md:p-6 animate-fade-in">
-      {/* На мобильном — полный экран, на десктопе — ~50% */}
+    <div
+      className="min-h-screen bg-gray-50 flex items-center justify-center font-golos animate-fade-in"
+      style={{ padding: "clamp(0px, 4vw, 24px)" }}
+    >
+      {/*
+        Мобильный: карточка на всю высоту экрана, без скролла
+        Десктоп: карточка ~50% ширины, скруглённая, с тенью
+      */}
       <div
         className="bg-white w-full md:max-w-xl md:rounded-2xl overflow-hidden flex flex-col"
         style={{
-          minHeight: "100dvh",
+          height: "100dvh",
+          maxHeight: "100dvh",
           boxShadow: "0 4px 40px rgba(47,79,79,0.13)",
         }}
       >
         {/* Header */}
-        <div style={{ background: "#2F4F4F" }} className="px-5 pt-8 pb-4 flex-shrink-0">
-          <p className="text-xs font-ibm uppercase tracking-widest text-white/50 mb-1">
+        <div style={{ background: "#2F4F4F" }} className="px-5 pt-6 pb-4 flex-shrink-0">
+          <p className="text-xs font-ibm uppercase tracking-widest text-white/50 mb-0.5">
             {product.category}
           </p>
-          <h1 className="text-xl font-bold text-white tracking-tight">
+          <h1 className="text-lg font-bold text-white tracking-tight leading-tight">
             {product.article}
           </h1>
         </div>
 
-        {/* Photo */}
+        {/* Photo — 30% высоты карточки */}
         <div
           className="w-full flex-shrink-0 bg-gray-50 flex items-center justify-center overflow-hidden"
           style={{
-            height: "clamp(220px, 35vh, 340px)",
+            height: "30%",
             borderBottom: "2px solid #2F4F4F",
           }}
         >
@@ -112,15 +119,14 @@ export default function ProductCard() {
             />
           ) : (
             <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
-              <span className="text-5xl opacity-20">📷</span>
+              <span className="text-4xl opacity-20">📷</span>
               <span className="text-xs text-gray-300 font-ibm">Фото недоступно</span>
             </div>
           )}
         </div>
 
-        {/* Content */}
-        <div className="px-5 py-5 space-y-4 flex-1 flex flex-col">
-          {/* Params */}
+        {/* Content — занимает оставшееся место */}
+        <div className="px-5 py-4 flex-1 flex flex-col gap-3 min-h-0">
           {product.params && (
             <div>
               <p className="text-xs font-ibm uppercase tracking-widest text-gray-400 mb-1">
@@ -132,27 +138,26 @@ export default function ProductCard() {
             </div>
           )}
 
-          <div className="h-px" style={{ background: "rgba(47,79,79,0.08)" }} />
+          <div className="h-px flex-shrink-0" style={{ background: "rgba(47,79,79,0.08)" }} />
 
-          {/* Price */}
           <div>
             <p className="text-xs font-ibm uppercase tracking-widest text-gray-400 mb-1">
               Цена (опт)
             </p>
-            <p className="text-3xl font-bold tracking-tight" style={{ color: "#2F4F4F" }}>
+            <p className="text-2xl font-bold tracking-tight" style={{ color: "#2F4F4F" }}>
               {formatPrice(product.price)}{" "}
-              <span className="text-base font-medium">₽</span>
+              <span className="text-sm font-medium">₽</span>
             </p>
           </div>
 
-          {/* Button — прижата к низу */}
-          <div className="flex-1 flex items-end pb-2">
+          {/* Кнопка прижата к низу */}
+          <div className="flex-1 flex items-end pb-3">
             {product.gallery ? (
               <a
                 href={product.gallery}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-4 rounded-xl text-white font-semibold text-sm transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
+                className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-white font-semibold text-sm transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
                 style={{ background: "#2F4F4F" }}
               >
                 <Icon name="Images" size={16} />
