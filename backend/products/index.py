@@ -76,13 +76,16 @@ def handler(event: dict, context) -> dict:
         if not products:
             return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "no products"})}
 
-        s3 = get_s3()
         key_id = os.environ["AWS_ACCESS_KEY_ID"]
         conn = get_db()
         cur = conn.cursor()
 
-        # Очищаем таблицу и заливаем заново
-        cur.execute(f'DELETE FROM "{schema}".products')
+        # Если photos пустой — это первый запрос с полным списком товаров, очищаем таблицу
+        # Если photos непустой — это запрос с фото для одного товара, только обновляем
+        is_bulk = not photos
+
+        if is_bulk:
+            cur.execute(f'DELETE FROM "{schema}".products')
 
         for p in products:
             article = p.get("article", "").strip()
@@ -93,13 +96,13 @@ def handler(event: dict, context) -> dict:
 
             # Загружаем фото в S3 если есть
             if article in photos:
+                s3 = get_s3()
                 data_url = photos[article]
                 if "base64," in data_url:
                     header, b64data = data_url.split("base64,", 1)
                     ext = "jpg" if "jpeg" in header else ("png" if "png" in header else "jpg")
                     mime = "image/jpeg" if ext == "jpg" else "image/png"
                     img_bytes = base64.b64decode(b64data)
-                    # Безопасный ключ для S3
                     safe_article = article.replace("/", "-").replace(" ", "_")
                     s3_key = f"catalog/{safe_article}.{ext}"
                     s3.put_object(
@@ -110,19 +113,25 @@ def handler(event: dict, context) -> dict:
                     )
                     photo_url = f"https://cdn.poehali.dev/projects/{key_id}/bucket/{s3_key}"
 
-            cur.execute(
-                f'''INSERT INTO "{schema}".products (article, category, params, price, gallery, photo_url)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (article) DO UPDATE SET
-                        category = EXCLUDED.category,
-                        params = EXCLUDED.params,
-                        price = EXCLUDED.price,
-                        gallery = EXCLUDED.gallery,
-                        photo_url = COALESCE(EXCLUDED.photo_url, "{schema}".products.photo_url),
-                        updated_at = NOW()''',
-                (article, p.get("category", ""), p.get("params", ""),
-                 p.get("price", ""), p.get("gallery", ""), photo_url)
-            )
+            article_esc = article.replace("'", "''")
+            category_esc = p.get("category", "").replace("'", "''")
+            params_esc = p.get("params", "").replace("'", "''")
+            price_esc = p.get("price", "").replace("'", "''")
+            gallery_esc = p.get("gallery", "").replace("'", "''")
+            photo_val = f"'{photo_url}'" if photo_url else "NULL"
+
+            if is_bulk:
+                cur.execute(
+                    f"""INSERT INTO "{schema}".products (article, category, params, price, gallery, photo_url)
+                        VALUES ('{article_esc}', '{category_esc}', '{params_esc}', '{price_esc}', '{gallery_esc}', {photo_val})"""
+                )
+            else:
+                # Только обновляем photo_url для существующего товара
+                cur.execute(
+                    f"""UPDATE "{schema}".products
+                        SET photo_url = {photo_val}, updated_at = NOW()
+                        WHERE article = '{article_esc}'"""
+                )
 
         conn.commit()
         conn.close()
