@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import Icon from "@/components/ui/icon";
+import { decodeArticle } from "@/lib/processFiles";
 
 const PRODUCTS_URL = "https://functions.poehali.dev/2d53c3f9-ece3-4909-b127-ad2dd38059f9";
 
@@ -22,7 +23,8 @@ function formatPrice(raw: string): string {
 
 export default function ProductCard() {
   const [searchParams] = useSearchParams();
-  const article = searchParams.get("article") || "";
+  const rawCode = searchParams.get("c") || searchParams.get("article") || "";
+  const article = rawCode ? decodeArticle(rawCode) : "";
   const [product, setProduct] = useState<Product | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [imgError, setImgError] = useState(false);

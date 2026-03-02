@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import jsPDF from "jspdf";
 import Icon from "@/components/ui/icon";
 import UploadStep from "@/components/admin/UploadStep";
@@ -9,32 +9,50 @@ import {
   parseZip,
   buildProducts,
   saveToServer,
+  encodeArticle,
 } from "@/lib/processFiles";
 
+const PRODUCTS_URL = "https://functions.poehali.dev/2d53c3f9-ece3-4909-b127-ad2dd38059f9";
 const SETTINGS_URL = "https://functions.poehali.dev/aafea221-e9fd-48bb-8c97-bb6ea04441e9";
+const BASE_URL = window.location.origin;
 
 export default function AdminPage() {
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [step, setStep] = useState<"upload" | "result">("upload");
   const [loading, setLoading] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(true);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [zipFile, setZipFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const qrRefs = useRef<Record<string, HTMLCanvasElement | null>>({});
 
-  // Смена пароля каталога
   const [newPassword, setNewPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState<string | null>(null);
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [passwordError, setPasswordError] = useState("");
 
-  // Загружаем текущий пароль с сервера при монтировании
-  useState(() => {
-    fetch(SETTINGS_URL)
-      .then((r) => r.json())
-      .then((d) => setCurrentPassword(d.password))
-      .catch(() => setCurrentPassword("2024"));
-  });
+  // Загружаем существующие товары и пароль при монтировании
+  useEffect(() => {
+    Promise.all([
+      fetch(`${PRODUCTS_URL}?all=1`).then((r) => r.json()).catch(() => ({ products: [] })),
+      fetch(SETTINGS_URL).then((r) => r.json()).catch(() => ({ password: "2024" })),
+    ]).then(([prodData, settingsData]) => {
+      setCurrentPassword(settingsData.password ?? "2024");
+      const list: ProductRow[] = (prodData.products ?? []).map((p: Record<string, string>) => ({
+        article: p.article,
+        category: p.category,
+        params: p.params,
+        price: p.price,
+        gallery: p.gallery,
+        hasPhoto: !!p.photo_url,
+        url: `${BASE_URL}/?c=${encodeArticle(p.article)}`,
+      }));
+      if (list.length > 0) {
+        setProducts(list);
+        setStep("result");
+      }
+    }).finally(() => setLoadingExisting(false));
+  }, []);
 
   const handleSavePassword = async () => {
     if (!newPassword.trim()) return;
@@ -145,14 +163,22 @@ export default function AdminPage() {
 
   const handleDownloadCSV = () => {
     const header = ["Артикул", "Найдено фото", "Ссылка на карточку"];
-    const rows = products.map((p) => [p.article, p.hasPhoto ? "Да" : "Нет", p.url]);
-    const csv = [header, ...rows].map((r) => r.join(";")).join("\n");
+    const csvRows = products.map((p) => [p.article, p.hasPhoto ? "Да" : "Нет", p.url]);
+    const csv = [header, ...csvRows].map((r) => r.join(";")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "catalog-links.csv";
     a.click();
   };
+
+  if (loadingExisting) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: "#2F4F4F", borderTopColor: "transparent" }} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white font-golos">

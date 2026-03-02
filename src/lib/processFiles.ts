@@ -15,8 +15,16 @@ export interface ProductRow {
   url: string;
 }
 
-function slugify(article: string) {
-  return encodeURIComponent(article);
+export function encodeArticle(article: string): string {
+  return btoa(encodeURIComponent(article));
+}
+
+export function decodeArticle(code: string): string {
+  try {
+    return decodeURIComponent(atob(code));
+  } catch {
+    return code;
+  }
 }
 
 function findPhotoForArticle(
@@ -102,7 +110,7 @@ export function buildProducts(
       gallery: String(row[5] ?? "").trim(),
       hasPhoto: !!photo,
       photo,
-      url: `${BASE_URL}/?article=${slugify(article)}`,
+      url: `${BASE_URL}/?c=${encodeArticle(article)}`,
     };
   });
 }

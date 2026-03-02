@@ -38,15 +38,29 @@ def handler(event: dict, context) -> dict:
     method = event.get("httpMethod", "GET")
     path = event.get("path", "/")
 
-    # GET /products/get?article=XXX
     if method == "GET":
         params = event.get("queryStringParameters") or {}
         article = params.get("article", "").strip()
+        conn = get_db()
+        cur = conn.cursor()
+
+        # GET ?all=1 — список всех товаров для админки
+        if params.get("all") == "1":
+            cur.execute(
+                f'SELECT article, category, params, price, gallery, photo_url FROM "{schema}".products ORDER BY article'
+            )
+            rows = cur.fetchall()
+            conn.close()
+            products_list = [
+                {"article": r[0], "category": r[1], "params": r[2], "price": r[3], "gallery": r[4], "photo_url": r[5]}
+                for r in rows
+            ]
+            return {"statusCode": 200, "headers": CORS, "body": json.dumps({"products": products_list})}
+
+        # GET ?article=XXX — один товар по артикулу
         if not article:
             return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "article required"})}
 
-        conn = get_db()
-        cur = conn.cursor()
         cur.execute(
             f'SELECT article, category, params, price, gallery, photo_url FROM "{schema}".products WHERE article = %s',
             (article,)

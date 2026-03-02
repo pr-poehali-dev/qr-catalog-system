@@ -14,8 +14,9 @@ const queryClient = new QueryClient();
 function AppRoutes() {
   const location = useLocation();
   const isAdmin = location.pathname === "/admin";
+  const _sp = new URLSearchParams(location.search);
   const isProduct =
-    location.pathname === "/" && new URLSearchParams(location.search).has("article");
+    location.pathname === "/" && (_sp.has("c") || _sp.has("article"));
 
   if (isAdmin) {
     return (
