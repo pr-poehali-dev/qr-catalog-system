@@ -97,5 +97,13 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: "Golos Text", sans-serif;
   }
+}
+
+:root {
+  --brand: #2f4f4f;
+  --brand-light: #3d6363;
+  --brand-muted: #f0f4f4;
+  --brand-border: #c8d8d8;
 }
