@@ -83,8 +83,9 @@ def handler(event: dict, context) -> dict:
         # Если photos пустой — это первый запрос с полным списком товаров, очищаем таблицу
         # Если photos непустой — это запрос с фото для одного товара, только обновляем
         is_bulk = not photos
+        is_first_chunk = body.get("is_first_chunk", True)
 
-        if is_bulk:
+        if is_bulk and is_first_chunk:
             cur.execute(f'DELETE FROM "{schema}".products')
 
         for p in products:

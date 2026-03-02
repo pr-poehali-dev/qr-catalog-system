@@ -134,25 +134,31 @@ export async function saveToServer(
 ): Promise<void> {
   onProgress?.("Сохраняю товары...");
 
-  // Шаг 1: сохраняем все товары (без фото)
-  const saveResp = await fetch(PRODUCTS_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      products: products.map((p) => ({
-        article: p.article,
-        category: p.category,
-        params: p.params,
-        price: p.price,
-        gallery: p.gallery,
-      })),
-      photos: {},
-    }),
-  });
+  const slim = products.map((p) => ({
+    article: p.article,
+    category: p.category,
+    params: p.params,
+    price: p.price,
+    gallery: p.gallery,
+  }));
 
-  if (!saveResp.ok) {
-    const err = await saveResp.json().catch(() => ({}));
-    throw new Error(err.error || `Ошибка сервера ${saveResp.status}`);
+  // Шаг 1: сохраняем все товары чанками по 100 (без фото)
+  const CHUNK = 100;
+  for (let ci = 0; ci < slim.length; ci += CHUNK) {
+    const chunk = slim.slice(ci, ci + CHUNK);
+    const isFirst = ci === 0;
+    const saveResp = await fetch(PRODUCTS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ products: chunk, photos: {}, is_first_chunk: isFirst }),
+    });
+    if (!saveResp.ok) {
+      const err = await saveResp.json().catch(() => ({}));
+      throw new Error(err.error || `Ошибка сервера ${saveResp.status}`);
+    }
+    if (slim.length > CHUNK) {
+      onProgress?.(`Сохраняю товары ${Math.min(ci + CHUNK, slim.length)} из ${slim.length}...`);
+    }
   }
 
   // Шаг 2: загружаем фото по одному со сжатием
