@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import Icon from "@/components/ui/icon";
-import { getProduct, getPhoto } from "@/lib/catalogDB";
+
+const PRODUCTS_URL = "https://functions.poehali.dev/2d53c3f9-ece3-4909-b127-ad2dd38059f9";
 
 interface Product {
   category: string;
@@ -9,7 +10,7 @@ interface Product {
   params: string;
   price: string;
   gallery: string;
-  photo?: string;
+  photo_url?: string;
 }
 
 function formatPrice(raw: string): string {
@@ -28,12 +29,13 @@ export default function ProductCard() {
 
   useEffect(() => {
     if (!article) { setNotFound(true); return; }
-    (async () => {
-      const found = await getProduct(article);
-      if (!found) { setNotFound(true); return; }
-      const photo = await getPhoto(article);
-      setProduct({ ...found, photo: photo ?? undefined });
-    })();
+    fetch(`${PRODUCTS_URL}?article=${encodeURIComponent(article)}`)
+      .then((r) => {
+        if (r.status === 404) { setNotFound(true); return null; }
+        return r.json();
+      })
+      .then((data) => { if (data) setProduct(data); })
+      .catch(() => setNotFound(true));
   }, [article]);
 
   if (notFound) {
@@ -56,13 +58,13 @@ export default function ProductCard() {
     );
   }
 
-  const hasPhoto = !!product.photo && !imgError;
+  const hasPhoto = !!product.photo_url && !imgError;
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center font-golos p-0 md:p-6 animate-fade-in">
-      {/* Card — full screen on mobile, centered ~30% width on desktop */}
+      {/* На мобильном — полный экран, на десктопе — ~50% */}
       <div
-        className="bg-white w-full md:max-w-sm md:rounded-2xl overflow-hidden flex flex-col"
+        className="bg-white w-full md:max-w-xl md:rounded-2xl overflow-hidden flex flex-col"
         style={{
           minHeight: "100dvh",
           boxShadow: "0 4px 40px rgba(47,79,79,0.13)",
@@ -78,18 +80,17 @@ export default function ProductCard() {
           </h1>
         </div>
 
-        {/* Photo — 30% карточки desktop / 50% mobile через aspect-ratio */}
+        {/* Photo */}
         <div
           className="w-full flex-shrink-0 bg-gray-50 flex items-center justify-center overflow-hidden"
           style={{
-            /* mobile: 50vh-ish, desktop: 30% of card */
-            height: "clamp(180px, 30vh, 260px)",
+            height: "clamp(220px, 35vh, 340px)",
             borderBottom: "2px solid #2F4F4F",
           }}
         >
           {hasPhoto ? (
             <img
-              src={product.photo}
+              src={product.photo_url}
               alt={product.article}
               onError={() => setImgError(true)}
               style={{

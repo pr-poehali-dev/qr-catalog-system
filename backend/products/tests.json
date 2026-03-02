@@ -1,0 +1,22 @@
+{
+  "tests": [
+    {
+      "name": "GET missing article returns 400",
+      "method": "GET",
+      "path": "/?article=",
+      "expectedStatus": 400
+    },
+    {
+      "name": "GET not found article returns 404",
+      "method": "GET",
+      "path": "/?article=NONEXISTENT_TEST_123",
+      "expectedStatus": 404
+    },
+    {
+      "name": "OPTIONS CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    }
+  ]
+}

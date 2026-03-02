@@ -4,7 +4,8 @@ import JSZip from "jszip";
 import { QRCodeCanvas } from "qrcode.react";
 import jsPDF from "jspdf";
 import Icon from "@/components/ui/icon";
-import { saveProducts } from "@/lib/catalogDB";
+
+const PRODUCTS_URL = "https://functions.poehali.dev/2d53c3f9-ece3-4909-b127-ad2dd38059f9";
 
 interface ProductRow {
   article: string;
@@ -147,17 +148,36 @@ export default function AdminPage() {
         };
       });
 
-      // Сохраняем данные товаров и фото в IndexedDB (без ограничений по размеру)
-      await saveProducts(
-        result.map((p) => ({
-          article: p.article,
-          category: p.category,
-          params: p.params,
-          price: p.price,
-          gallery: p.gallery,
-        })),
-        photoMap
-      );
+      // Отправляем данные на сервер (БД + S3 для фото)
+      setError("Загружаю на сервер...");
+
+      // Формируем словарь фото по артикулу для отправки
+      const photosPayload: Record<string, string> = {};
+      result.forEach((p) => {
+        if (p.photo) photosPayload[p.article] = p.photo;
+      });
+
+      const saveResp = await fetch(PRODUCTS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          products: result.map((p) => ({
+            article: p.article,
+            category: p.category,
+            params: p.params,
+            price: p.price,
+            gallery: p.gallery,
+          })),
+          photos: photosPayload,
+        }),
+      });
+
+      if (!saveResp.ok) {
+        const err = await saveResp.json().catch(() => ({}));
+        throw new Error(err.error || `Ошибка сервера ${saveResp.status}`);
+      }
+
+      setError("");
 
       setProducts(result);
       setStep("result");
