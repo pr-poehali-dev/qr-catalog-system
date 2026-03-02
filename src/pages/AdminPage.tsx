@@ -11,7 +11,7 @@ import {
   saveToServer,
 } from "@/lib/processFiles";
 
-export const CATALOG_PASSWORD_KEY = "catalog_password";
+const SETTINGS_URL = "https://functions.poehali.dev/aafea221-e9fd-48bb-8c97-bb6ea04441e9";
 
 export default function AdminPage() {
   const [products, setProducts] = useState<ProductRow[]>([]);
@@ -24,14 +24,34 @@ export default function AdminPage() {
 
   // Смена пароля каталога
   const [newPassword, setNewPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState<string | null>(null);
   const [passwordSaved, setPasswordSaved] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
 
-  const handleSavePassword = () => {
+  // Загружаем текущий пароль с сервера при монтировании
+  useState(() => {
+    fetch(SETTINGS_URL)
+      .then((r) => r.json())
+      .then((d) => setCurrentPassword(d.password))
+      .catch(() => setCurrentPassword("2024"));
+  });
+
+  const handleSavePassword = async () => {
     if (!newPassword.trim()) return;
-    localStorage.setItem(CATALOG_PASSWORD_KEY, newPassword.trim());
-    setPasswordSaved(true);
-    setNewPassword("");
-    setTimeout(() => setPasswordSaved(false), 2000);
+    setPasswordError("");
+    const resp = await fetch(`${SETTINGS_URL}?action=update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: newPassword.trim() }),
+    });
+    if (resp.ok) {
+      setCurrentPassword(newPassword.trim());
+      setPasswordSaved(true);
+      setNewPassword("");
+      setTimeout(() => setPasswordSaved(false), 2500);
+    } else {
+      setPasswordError("Не удалось сохранить пароль");
+    }
   };
 
   const handleProcess = async () => {
@@ -182,14 +202,17 @@ export default function AdminPage() {
               Пароль для просмотра каталога
             </p>
             <p className="text-xs text-gray-400 font-ibm mt-0.5">
-              Текущий пароль: <span className="font-medium text-gray-600">{localStorage.getItem(CATALOG_PASSWORD_KEY) || "2024"}</span>
+              Текущий пароль:{" "}
+              <span className="font-medium text-gray-600 font-mono">
+                {currentPassword ?? "..."}
+              </span>
             </p>
           </div>
           <div className="flex gap-2">
             <input
               type="text"
               value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
+              onChange={(e) => { setNewPassword(e.target.value); setPasswordError(""); }}
               onKeyDown={(e) => e.key === "Enter" && handleSavePassword()}
               placeholder="Новый пароль"
               className="flex-1 px-3 py-2 rounded-lg border text-sm font-ibm outline-none transition-all focus:border-[#2F4F4F]"
@@ -201,13 +224,16 @@ export default function AdminPage() {
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium transition-all hover:opacity-90 disabled:opacity-40"
               style={{ background: "#2F4F4F" }}
             >
-              {passwordSaved ? (
-                <><Icon name="Check" size={14} /> Сохранено</>
-              ) : (
-                <><Icon name="KeyRound" size={14} /> Сохранить</>
-              )}
+              {passwordSaved
+                ? <><Icon name="Check" size={14} /> Сохранено</>
+                : <><Icon name="KeyRound" size={14} /> Сохранить</>}
             </button>
           </div>
+          {passwordError && (
+            <p className="text-xs text-red-500 font-ibm flex items-center gap-1">
+              <Icon name="AlertCircle" size={12} />{passwordError}
+            </p>
+          )}
         </div>
       </div>
     </div>

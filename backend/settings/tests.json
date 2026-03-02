@@ -1,0 +1,23 @@
+{
+  "tests": [
+    {
+      "name": "GET current password",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "OPTIONS CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "POST check wrong password",
+      "method": "POST",
+      "path": "/?action=check",
+      "body": {"password": "wrongpass_xyz"},
+      "expectedStatus": 403
+    }
+  ]
+}

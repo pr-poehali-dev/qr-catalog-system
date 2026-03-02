@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
-import { CATALOG_PASSWORD_KEY } from "./AdminPage";
 
 interface PasswordGateProps {
   children: React.ReactNode;
@@ -8,10 +7,7 @@ interface PasswordGateProps {
 }
 
 const ADMIN_PASSWORD = "Pizza999i$%jw-rt188!";
-
-function getCatalogPassword(): string {
-  return localStorage.getItem(CATALOG_PASSWORD_KEY) || "2024";
-}
+const SETTINGS_URL = "https://functions.poehali.dev/aafea221-e9fd-48bb-8c97-bb6ea04441e9";
 
 const COOKIES = {
   catalog: "catalog_auth",
@@ -37,6 +33,7 @@ export default function PasswordGate({ children, mode }: PasswordGateProps) {
   const [error, setError] = useState(false);
   const [shake, setShake] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [showPass, setShowPass] = useState(false);
 
   useEffect(() => {
@@ -45,10 +42,33 @@ export default function PasswordGate({ children, mode }: PasswordGateProps) {
     setChecking(false);
   }, [mode]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const correctPassword = mode === "admin" ? ADMIN_PASSWORD : getCatalogPassword();
-    if (input === correctPassword) {
+    if (!input || submitting) return;
+    setSubmitting(true);
+
+    let ok = false;
+
+    if (mode === "admin") {
+      ok = input === ADMIN_PASSWORD;
+    } else {
+      // Проверяем пароль каталога через сервер
+      try {
+        const resp = await fetch(`${SETTINGS_URL}?action=check`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: input }),
+        });
+        ok = resp.ok;
+      } catch {
+        // Если сервер недоступен — не пускаем
+        ok = false;
+      }
+    }
+
+    setSubmitting(false);
+
+    if (ok) {
       setCookie(COOKIES[mode], "ok", COOKIE_DAYS);
       setAuthenticated(true);
       setError(false);
@@ -94,6 +114,7 @@ export default function PasswordGate({ children, mode }: PasswordGateProps) {
               onChange={(e) => { setInput(e.target.value); setError(false); }}
               placeholder="Пароль"
               autoFocus
+              disabled={submitting}
               className={`w-full px-4 py-3 pr-11 rounded-xl border text-sm font-ibm outline-none transition-all duration-200 ${
                 error
                   ? "border-red-300 bg-red-50 text-red-900"
@@ -119,10 +140,13 @@ export default function PasswordGate({ children, mode }: PasswordGateProps) {
 
           <button
             type="submit"
-            className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
+            disabled={submitting || !input}
+            className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
             style={{ background: "#2F4F4F" }}
           >
-            Войти
+            {submitting ? (
+              <><div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Проверяю...</>
+            ) : "Войти"}
           </button>
         </form>
       </div>
