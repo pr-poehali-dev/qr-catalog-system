@@ -41,11 +41,45 @@ export default function AdminPage() {
 
     try {
       const csvBuffer = await csvFile.arrayBuffer();
-      const wb = XLSX.read(csvBuffer, { type: "array" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 }) as string[][];
+      const fileName = csvFile.name.toLowerCase();
 
-      const dataRows = rows.slice(1).filter((r) => r[2]);
+      let rows: unknown[][];
+
+      if (fileName.endsWith(".csv")) {
+        // CSV: пробуем UTF-8, потом windows-1251
+        let text = "";
+        try {
+          text = new TextDecoder("utf-8").decode(new Uint8Array(csvBuffer));
+        } catch {
+          text = new TextDecoder("windows-1251").decode(new Uint8Array(csvBuffer));
+        }
+        const separator = text.indexOf(";") !== -1 ? ";" : ",";
+        rows = text
+          .split(/\r?\n/)
+          .filter((line) => line.trim() !== "")
+          .map((line) =>
+            line.split(separator).map((cell) => cell.trim().replace(/^"|"$/g, ""))
+          );
+      } else {
+        // Excel (.xlsx / .xls)
+        const wb = XLSX.read(csvBuffer, { type: "array", cellText: false, raw: false });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, {
+          header: 1,
+          defval: "",
+          raw: false,
+        }) as unknown[][];
+      }
+
+      const dataRows = rows.slice(1).filter((r) => String(r[2] ?? "").trim() !== "");
+
+      if (dataRows.length === 0) {
+        setError(
+          "Не найдено строк с данными. Убедитесь что: 1) артикул в столбце C (3-й), 2) данные начинаются со 2-й строки, 3) файл не пустой."
+        );
+        setLoading(false);
+        return;
+      }
 
       const photoMap: Record<string, string> = {};
 
@@ -72,15 +106,23 @@ export default function AdminPage() {
       }
 
       const result: ProductRow[] = dataRows.map((row) => {
-        const article = String(row[2] || "").trim();
-        const articleKey = article.toLowerCase().replace(/[^a-z0-9а-яё]/gi, "");
+        const article = String(row[2] ?? "").trim();
+        // Нормализуем для поиска: оставляем только буквы, цифры, дефис
+        const articleNorm = article.toLowerCase().replace(/[\s_]/g, "-");
 
         let foundPhoto: string | undefined;
         let hasPhoto = false;
 
         for (const [key, dataUrl] of Object.entries(photoMap)) {
-          const keyNorm = key.toLowerCase().replace(/[^a-z0-9а-яё]/gi, "");
-          if (keyNorm.includes(articleKey) || articleKey.includes(keyNorm)) {
+          // Ищем совпадение: имя файла содержит артикул или наоборот
+          const keyNorm = key.toLowerCase();
+          const artClean = article.toLowerCase().replace(/\//g, "-").replace(/\s/g, "");
+          if (
+            keyNorm.includes(artClean) ||
+            artClean.includes(keyNorm) ||
+            keyNorm.includes(articleNorm) ||
+            articleNorm.includes(keyNorm)
+          ) {
             foundPhoto = dataUrl;
             hasPhoto = true;
             break;
@@ -89,10 +131,10 @@ export default function AdminPage() {
 
         return {
           article,
-          category: String(row[0] || "").trim(),
-          params: String(row[3] || "").trim(),
-          price: String(row[4] || "").trim(),
-          gallery: String(row[5] || "").trim(),
+          category: String(row[0] ?? "").trim(),
+          params: String(row[3] ?? "").trim(),
+          price: String(row[4] ?? "").trim(),
+          gallery: String(row[5] ?? "").trim(),
           hasPhoto,
           photo: foundPhoto,
           url: `${BASE_URL}/?article=${slugify(article)}`,
@@ -115,7 +157,8 @@ export default function AdminPage() {
       setProducts(result);
       setStep("result");
     } catch (e) {
-      setError("Ошибка обработки файла. Проверьте формат.");
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(`Ошибка: ${msg}. Убедитесь что файл не повреждён и соответствует формату Excel/CSV.`);
       console.error(e);
     }
 
