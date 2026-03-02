@@ -31,18 +31,12 @@ function findPhotoForArticle(
   article: string,
   photoMap: Record<string, string>
 ): string | undefined {
-  const artVariants = [
-    article.toLowerCase(),
-    article.toLowerCase().replace(/\//g, "-"),
-    article.toLowerCase().replace(/\//g, "_"),
-    article.toLowerCase().replace(/[^a-z0-9а-яё]/gi, ""),
-    article.toLowerCase().replace(/[^a-z0-9а-яё]/gi, "-"),
-  ].filter(Boolean);
+  const artNorm = article.toLowerCase();
 
   for (const [key, dataUrl] of Object.entries(photoMap)) {
-    const keyNorm = key.toLowerCase();
-    const matched = artVariants.some((v) => keyNorm.includes(v) || v.includes(keyNorm));
-    if (matched) return dataUrl;
+    // Заменяем "_" на "/" в имени файла, чтобы сравнивать с артикулом как есть
+    const keyNorm = key.toLowerCase().replace(/_/g, "/");
+    if (keyNorm === artNorm) return dataUrl;
   }
   return undefined;
 }
