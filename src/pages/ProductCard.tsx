@@ -29,13 +29,21 @@ export default function ProductCard() {
 
   useEffect(() => {
     if (!article) { setNotFound(true); return; }
-    fetch(`${PRODUCTS_URL}?article=${encodeURIComponent(article)}`)
-      .then((r) => {
+    const url = `${PRODUCTS_URL}?article=${encodeURIComponent(article)}`;
+    console.log("[ProductCard] fetching:", url);
+    fetch(url)
+      .then(async (r) => {
+        console.log("[ProductCard] response status:", r.status);
         if (r.status === 404) { setNotFound(true); return null; }
-        return r.json();
+        const data = await r.json();
+        console.log("[ProductCard] data:", data);
+        return data;
       })
       .then((data) => { if (data) setProduct(data); })
-      .catch(() => setNotFound(true));
+      .catch((err) => {
+        console.error("[ProductCard] fetch error:", err);
+        setNotFound(true);
+      });
   }, [article]);
 
   if (notFound) {
