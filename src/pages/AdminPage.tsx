@@ -186,7 +186,7 @@ export default function AdminPage() {
       // Артикул снизу: 3мм от нижнего края, по центру ширины
       doc.setFont("helvetica", "bold");
       doc.setTextColor(47, 79, 79);
-      doc.setFontSize(12);
+      doc.setFontSize(11);
       const textX = pageW / 2;
       const textY = pageH - 3;
       doc.text(product.article, textX, textY, { align: "center" });
