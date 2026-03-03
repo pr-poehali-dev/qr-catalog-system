@@ -115,28 +115,28 @@ export default function AdminPage() {
     const toprint = products.filter((p) => selectedArticles.includes(p.article));
     if (toprint.length === 0) return;
 
-    // Страница 45×27мм (длина × ширина), альбомная ориентация
-    const pageW = 45; // длинная сторона
-    const pageH = 27; // короткая сторона
+    // Страница 27×45мм (ширина × длина), вертикальная
+    const pageW = 27;
+    const pageH = 45;
     const margin = 1.5;
-    const labelW = 7;   // ширина полосы под артикул (по правой короткой стороне)
-    const fontSize = 15;
+    const gap = 1;
 
-    // QR занимает короткую сторону минус отступы
-    const qrSize = pageH - margin * 2;
+    // QR квадрат на всю ширину
+    const qrSize = pageW - margin * 2;
+    // Оставшаяся высота под артикул
+    const labelH = pageH - margin * 2 - qrSize - gap;
 
     const doc = new jsPDF({
-      orientation: "landscape",
+      orientation: "portrait",
       unit: "mm",
-      format: [pageH, pageW], // jsPDF: [height, width] при landscape
+      format: [pageW, pageH],
     });
 
-    // Высокое разрешение: 12px на мм
     const DPI_SCALE = 12;
     const pxSize = Math.round(qrSize * DPI_SCALE);
 
     for (let i = 0; i < toprint.length; i++) {
-      if (i > 0) doc.addPage([pageH, pageW], "landscape");
+      if (i > 0) doc.addPage([pageW, pageH], "portrait");
       const product = toprint[i];
 
       const svgStr = await QRCode.toString(product.url, {
@@ -162,25 +162,24 @@ export default function AdminPage() {
         img.src = svgUrl;
       });
 
-      // QR слева
-      const qrX = margin;
-      const qrY = margin;
-      doc.addImage(imgData, "PNG", qrX, qrY, qrSize, qrSize);
+      // QR сверху
+      doc.addImage(imgData, "PNG", margin, margin, qrSize, qrSize);
 
-      // Артикул повёрнут 90° в правой полосе
-      const rightStripStart = qrX + qrSize + 1;
-      const rightStripW = pageW - rightStripStart - margin;
-      const textX = rightStripStart + rightStripW / 2;
-      const textY = pageH / 2;
-
-      doc.setFontSize(fontSize);
+      // Авто-размер шрифта: растягиваем артикул на всю ширину
       doc.setFont("helvetica", "bold");
       doc.setTextColor(47, 79, 79);
-      doc.text(product.article, textX, textY, {
-        align: "center",
-        angle: 90,
-        maxWidth: pageH - margin * 2,
-      });
+      doc.setFontSize(10);
+      const testW = doc.getTextWidth(product.article);
+      const availW = qrSize;
+      // Размер по ширине
+      const fontByWidth = 10 * (availW / testW);
+      // Размер по высоте (1pt = 0.3528mm)
+      const fontByHeight = (labelH * 0.85) / 0.3528;
+      const finalSize = Math.min(fontByWidth, fontByHeight);
+
+      doc.setFontSize(finalSize);
+      const textY = margin + qrSize + gap + (labelH / 2) + (finalSize * 0.3528 * 0.35);
+      doc.text(product.article, margin + availW / 2, textY, { align: "center" });
     }
 
     doc.save("qr-codes.pdf");
