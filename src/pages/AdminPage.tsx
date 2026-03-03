@@ -121,10 +121,11 @@ export default function AdminPage() {
     const margin = 1.5;
     const gap = 1;
 
-    // QR квадрат по высоте (высота — короткая сторона)
-    const qrSize = pageH - margin * 2;
-    // Оставшаяся ширина под артикул
-    const labelW = pageW - margin * 2 - qrSize - gap;
+    // QR квадрат: короткая сторона минус отступы
+    const qrSize = pageH - margin * 2; // 22мм
+    // Зона артикула: от конца QR до правого края
+    const articleX = margin + qrSize + gap; // начало зоны артикула
+    const labelW = pageW - articleX - margin; // ширина зоны артикула
 
     const doc = new jsPDF({
       orientation: "landscape",
@@ -165,12 +166,12 @@ export default function AdminPage() {
       // QR слева
       doc.addImage(imgData, "PNG", margin, margin, qrSize, qrSize);
 
-      // Артикул — фиксированный размер, повёрнут на 90° (по короткой стороне)
+      // Артикул — повёрнут на 90°, центрирован в зоне справа от QR
       doc.setFont("helvetica", "bold");
       doc.setTextColor(47, 79, 79);
       doc.setFontSize(14);
-      const textX = pageW - 3; // 3мм от правого (нижнего при повороте) края
-      const textY = pageH / 2;
+      const textX = articleX + labelW / 2; // центр зоны артикула по горизонтали
+      const textY = pageH / 2;             // центр этикетки по вертикали
       doc.text(product.article, textX, textY, { align: "center", angle: 90 });
     }
 
