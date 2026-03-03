@@ -12,7 +12,7 @@ import psycopg2
 
 CORS = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
 }
 
@@ -152,5 +152,50 @@ def handler(event: dict, context) -> dict:
         conn.close()
 
         return {"statusCode": 200, "headers": CORS, "body": json.dumps({"saved": len(products)})}
+
+    # PATCH /products — обновление цен (upsert: обновить если есть, добавить если нет)
+    if method == "PATCH":
+        body = json.loads(event.get("body") or "{}")
+        updates = body.get("products", [])  # [{article, category, params, price, gallery}]
+
+        if not updates:
+            return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "no products"})}
+
+        conn = get_db()
+        cur = conn.cursor()
+        updated = 0
+        inserted = 0
+
+        for p in updates:
+            article = p.get("article", "").strip()
+            if not article:
+                continue
+            article_esc = article.replace("'", "''")
+            price_esc = p.get("price", "").replace("'", "''")
+            category_esc = p.get("category", "").replace("'", "''")
+            params_esc = p.get("params", "").replace("'", "''")
+            gallery_esc = p.get("gallery", "").replace("'", "''")
+
+            cur.execute(f"SELECT 1 FROM \"{schema}\".products WHERE article = '{article_esc}'")
+            exists = cur.fetchone()
+
+            if exists:
+                cur.execute(
+                    f"""UPDATE "{schema}".products
+                        SET price = '{price_esc}', updated_at = NOW()
+                        WHERE article = '{article_esc}'"""
+                )
+                updated += 1
+            else:
+                cur.execute(
+                    f"""INSERT INTO "{schema}".products (article, category, params, price, gallery)
+                        VALUES ('{article_esc}', '{category_esc}', '{params_esc}', '{price_esc}', '{gallery_esc}')"""
+                )
+                inserted += 1
+
+        conn.commit()
+        conn.close()
+
+        return {"statusCode": 200, "headers": CORS, "body": json.dumps({"updated": updated, "inserted": inserted})}
 
     return {"statusCode": 405, "headers": CORS, "body": json.dumps({"error": "method not allowed"})}

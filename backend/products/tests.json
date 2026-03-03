@@ -17,6 +17,13 @@
       "method": "OPTIONS",
       "path": "/",
       "expectedStatus": 200
+    },
+    {
+      "name": "PATCH no products returns 400",
+      "method": "PATCH",
+      "path": "/",
+      "body": {"products": []},
+      "expectedStatus": 400
     }
   ]
 }

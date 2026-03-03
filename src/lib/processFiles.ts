@@ -109,6 +109,48 @@ export function buildProducts(
   });
 }
 
+// Обновляем цены: upsert по артикулу чанками по 200
+export async function updatePrices(
+  file: File,
+  onProgress?: (msg: string) => void
+): Promise<{ updated: number; inserted: number }> {
+  const rows = await parseSpreadsheet(file);
+  const dataRows = rows.slice(1).filter((r) => String(r[2] ?? "").trim() !== "");
+
+  if (dataRows.length === 0) throw new Error("Не найдено строк с данными");
+
+  const products = dataRows.map((row) => ({
+    article: String(row[2] ?? "").trim(),
+    category: String(row[0] ?? "").trim(),
+    params: String(row[3] ?? "").trim(),
+    price: String(row[4] ?? "").trim(),
+    gallery: String(row[5] ?? "").trim(),
+  }));
+
+  const CHUNK = 200;
+  let totalUpdated = 0;
+  let totalInserted = 0;
+
+  for (let ci = 0; ci < products.length; ci += CHUNK) {
+    const chunk = products.slice(ci, ci + CHUNK);
+    onProgress?.(`Обновляю цены ${Math.min(ci + CHUNK, products.length)} из ${products.length}...`);
+    const resp = await fetch(PRODUCTS_URL, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ products: chunk }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || `Ошибка сервера ${resp.status}`);
+    }
+    const data = await resp.json();
+    totalUpdated += data.updated ?? 0;
+    totalInserted += data.inserted ?? 0;
+  }
+
+  return { updated: totalUpdated, inserted: totalInserted };
+}
+
 // Сжимаем изображение через Canvas до нужного размера (макс 800px, качество 0.7)
 async function compressImage(dataUrl: string, maxPx = 800, quality = 0.75): Promise<string> {
   return new Promise((resolve) => {

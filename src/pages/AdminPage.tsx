@@ -9,6 +9,7 @@ import {
   parseZip,
   buildProducts,
   saveToServer,
+  updatePrices,
   encodeArticle,
 } from "@/lib/processFiles";
 
@@ -30,6 +31,12 @@ export default function AdminPage() {
   const [currentPassword, setCurrentPassword] = useState<string | null>(null);
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+
+  const [priceFile, setPriceFile] = useState<File | null>(null);
+  const [priceLoading, setPriceLoading] = useState(false);
+  const [priceStatus, setPriceStatus] = useState("");
+  const [priceError, setPriceError] = useState("");
+  const priceInputRef = useRef<HTMLInputElement>(null);
 
   // Загружаем существующие товары и пароль при монтировании
   useEffect(() => {
@@ -161,6 +168,22 @@ export default function AdminPage() {
     doc.save("qr-codes.pdf");
   };
 
+  const handleUpdatePrices = async () => {
+    if (!priceFile) return;
+    setPriceError("");
+    setPriceStatus("");
+    setPriceLoading(true);
+    try {
+      const { updated, inserted } = await updatePrices(priceFile, (msg) => setPriceStatus(msg));
+      setPriceStatus(`Готово: обновлено ${updated}, добавлено ${inserted} товаров`);
+      setPriceFile(null);
+      if (priceInputRef.current) priceInputRef.current.value = "";
+    } catch (e) {
+      setPriceError(e instanceof Error ? e.message : String(e));
+    }
+    setPriceLoading(false);
+  };
+
   const handleDownloadCSV = () => {
     const header = ["Артикул", "Найдено фото", "Ссылка на карточку"];
     const csvRows = products.map((p) => [p.article, p.hasPhoto ? "Да" : "Нет", p.url]);
@@ -220,6 +243,61 @@ export default function AdminPage() {
             onDownloadPDF={handleDownloadPDF}
           />
         )}
+
+        {/* Обновление цен */}
+        <div
+          className="border rounded-xl p-5 space-y-3"
+          style={{ borderColor: "rgba(47,79,79,0.12)" }}
+        >
+          <div>
+            <p className="text-sm font-semibold" style={{ color: "#2F4F4F" }}>
+              Обновить цены
+            </p>
+            <p className="text-xs text-gray-400 font-ibm mt-0.5">
+              Загрузите Excel/CSV — цены обновятся по артикулам. Новые артикулы добавятся в базу.
+            </p>
+          </div>
+          <div className="flex gap-2 items-center flex-wrap">
+            <label
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm cursor-pointer transition-all hover:border-[#2F4F4F] font-ibm"
+              style={{ borderColor: "#c8d8d8", color: "#2F4F4F" }}
+            >
+              <Icon name="FileSpreadsheet" size={15} />
+              {priceFile ? priceFile.name : "Выбрать файл"}
+              <input
+                ref={priceInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+                onChange={(e) => {
+                  setPriceFile(e.target.files?.[0] ?? null);
+                  setPriceStatus("");
+                  setPriceError("");
+                }}
+              />
+            </label>
+            <button
+              onClick={handleUpdatePrices}
+              disabled={!priceFile || priceLoading}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium transition-all hover:opacity-90 disabled:opacity-40"
+              style={{ background: "#2F4F4F" }}
+            >
+              {priceLoading
+                ? <><Icon name="Loader2" size={14} className="animate-spin" /> Обновляю...</>
+                : <><Icon name="RefreshCw" size={14} /> Обновить цены</>}
+            </button>
+          </div>
+          {priceStatus && (
+            <p className="text-xs font-ibm flex items-center gap-1" style={{ color: "#2F4F4F" }}>
+              <Icon name="CheckCircle" size={12} />{priceStatus}
+            </p>
+          )}
+          {priceError && (
+            <p className="text-xs text-red-500 font-ibm flex items-center gap-1">
+              <Icon name="AlertCircle" size={12} />{priceError}
+            </p>
+          )}
+        </div>
 
         {/* Смена пароля каталога */}
         <div
