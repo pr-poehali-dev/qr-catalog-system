@@ -115,29 +115,25 @@ export default function AdminPage() {
     const toprint = products.filter((p) => selectedArticles.includes(p.article));
     if (toprint.length === 0) return;
 
-    // Страница 43×25мм (горизонтальная, широкой стороной вперёд)
-    const pageW = 43;
-    const pageH = 25;
+    // Страница 25×43мм (portrait: широкая сторона = вход в принтер)
+    const pageW = 25;
+    const pageH = 43;
     const margin = 1.5;
-    const gap = 1;
 
-    // QR квадрат: короткая сторона минус отступы
-    const qrSize = pageH - margin * 2; // 22мм
-    // Зона артикула: от конца QR до правого края
-    const articleX = margin + qrSize + gap; // начало зоны артикула
-    const labelW = pageW - articleX - margin; // ширина зоны артикула
+    // QR квадрат на всю ширину
+    const qrSize = pageW - margin * 2; // 22мм
 
     const doc = new jsPDF({
-      orientation: "landscape",
+      orientation: "portrait",
       unit: "mm",
-      format: [pageH, pageW],
+      format: [pageW, pageH],
     });
 
     const DPI_SCALE = 12;
     const pxSize = Math.round(qrSize * DPI_SCALE);
 
     for (let i = 0; i < toprint.length; i++) {
-      if (i > 0) doc.addPage([pageH, pageW], "landscape");
+      if (i > 0) doc.addPage([pageW, pageH], "portrait");
       const product = toprint[i];
 
       const svgStr = await QRCode.toString(product.url, {
@@ -163,16 +159,16 @@ export default function AdminPage() {
         img.src = svgUrl;
       });
 
-      // QR слева
+      // QR сверху
       doc.addImage(imgData, "PNG", margin, margin, qrSize, qrSize);
 
-      // Артикул — повёрнут на 90°, центрирован в зоне справа от QR
+      // Артикул снизу: 3мм от нижнего края, по центру ширины
       doc.setFont("helvetica", "bold");
       doc.setTextColor(47, 79, 79);
       doc.setFontSize(14);
-      const textX = pageW - 3;   // 3мм от правого края (дальняя от QR сторона)
-      const textY = pageH / 2;   // центр по короткой стороне
-      doc.text(product.article, textX, textY, { align: "center", angle: 90 });
+      const textX = pageW / 2;
+      const textY = pageH - 3;
+      doc.text(product.article, textX, textY, { align: "center" });
     }
 
     doc.save("qr-codes.pdf");
