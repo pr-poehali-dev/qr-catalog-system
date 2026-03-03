@@ -162,20 +162,24 @@ export default function AdminPage() {
         img.src = svgUrl;
       });
 
-      // QR слева, артикул вертикально по правой короткой стороне
+      // QR слева
       const qrX = margin;
       const qrY = margin;
       doc.addImage(imgData, "PNG", qrX, qrY, qrSize, qrSize);
 
-      // Артикул повёрнут 90° вдоль правой короткой стороны
+      // Артикул повёрнут 90° в правой полосе
+      const rightStripStart = qrX + qrSize + 1;
+      const rightStripW = pageW - rightStripStart - margin;
+      const textX = rightStripStart + rightStripW / 2;
+      const textY = pageH / 2;
+
       doc.setFontSize(fontSize);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(47, 79, 79);
-      const textX = qrX + qrSize + labelW / 2 + 0.5;
-      const textY = pageH / 2;
       doc.text(product.article, textX, textY, {
         align: "center",
         angle: 90,
+        maxWidth: pageH - margin * 2,
       });
     }
 
