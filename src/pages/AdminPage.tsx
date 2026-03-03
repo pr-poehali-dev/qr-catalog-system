@@ -169,7 +169,7 @@ export default function AdminPage() {
       doc.setFont("helvetica", "bold");
       doc.setTextColor(47, 79, 79);
       doc.setFontSize(14);
-      const textX = margin + qrSize + gap + labelW / 2;
+      const textX = pageW - 3; // 3мм от правого (нижнего при повороте) края
       const textY = pageH / 2;
       doc.text(product.article, textX, textY, { align: "center", angle: 90 });
     }
