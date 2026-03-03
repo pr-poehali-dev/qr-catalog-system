@@ -115,28 +115,28 @@ export default function AdminPage() {
     const toprint = products.filter((p) => selectedArticles.includes(p.article));
     if (toprint.length === 0) return;
 
-    // Страница 25×43мм (ширина × длина), вертикальная
-    const pageW = 25;
-    const pageH = 43;
+    // Страница 43×25мм (горизонтальная, широкой стороной вперёд)
+    const pageW = 43;
+    const pageH = 25;
     const margin = 1.5;
     const gap = 1;
 
-    // QR квадрат на всю ширину
-    const qrSize = pageW - margin * 2;
-    // Оставшаяся высота под артикул
-    const labelH = pageH - margin * 2 - qrSize - gap;
+    // QR квадрат по высоте (высота — короткая сторона)
+    const qrSize = pageH - margin * 2;
+    // Оставшаяся ширина под артикул
+    const labelW = pageW - margin * 2 - qrSize - gap;
 
     const doc = new jsPDF({
-      orientation: "portrait",
+      orientation: "landscape",
       unit: "mm",
-      format: [pageW, pageH],
+      format: [pageH, pageW],
     });
 
     const DPI_SCALE = 12;
     const pxSize = Math.round(qrSize * DPI_SCALE);
 
     for (let i = 0; i < toprint.length; i++) {
-      if (i > 0) doc.addPage([pageW, pageH], "portrait");
+      if (i > 0) doc.addPage([pageH, pageW], "landscape");
       const product = toprint[i];
 
       const svgStr = await QRCode.toString(product.url, {
@@ -162,24 +162,24 @@ export default function AdminPage() {
         img.src = svgUrl;
       });
 
-      // QR сверху
+      // QR слева
       doc.addImage(imgData, "PNG", margin, margin, qrSize, qrSize);
 
-      // Авто-размер шрифта: растягиваем артикул на всю ширину
+      // Авто-размер шрифта: растягиваем артикул на оставшуюся ширину справа
       doc.setFont("helvetica", "bold");
       doc.setTextColor(47, 79, 79);
       doc.setFontSize(10);
       const testW = doc.getTextWidth(product.article);
-      const availW = qrSize;
-      // Размер по ширине
-      const fontByWidth = 10 * (availW / testW);
+      // Размер по ширине доступной области
+      const fontByWidth = 10 * (labelW / testW);
       // Размер по высоте (1pt = 0.3528mm)
-      const fontByHeight = (labelH * 0.85) / 0.3528;
+      const fontByHeight = (qrSize * 0.85) / 0.3528;
       const finalSize = Math.min(fontByWidth, fontByHeight);
 
       doc.setFontSize(finalSize);
-      const textY = margin + qrSize + gap + (labelH / 2) + (finalSize * 0.3528 * 0.35);
-      doc.text(product.article, margin + availW / 2, textY, { align: "center" });
+      const textX = margin + qrSize + gap + labelW / 2;
+      const textY = margin + qrSize / 2 + (finalSize * 0.3528 * 0.35);
+      doc.text(product.article, textX, textY, { align: "center" });
     }
 
     doc.save("qr-codes.pdf");
