@@ -120,7 +120,7 @@ export default function AdminPage() {
     const pageH = 27; // короткая сторона
     const margin = 1.5;
     const labelW = 7;   // ширина полосы под артикул (по правой короткой стороне)
-    const fontSize = 5;
+    const fontSize = 15;
 
     // QR занимает короткую сторону минус отступы
     const qrSize = pageH - margin * 2;
