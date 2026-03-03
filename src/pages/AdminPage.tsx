@@ -115,9 +115,9 @@ export default function AdminPage() {
     const toprint = products.filter((p) => selectedArticles.includes(p.article));
     if (toprint.length === 0) return;
 
-    // Страница 27×45мм (ширина × длина), вертикальная
-    const pageW = 27;
-    const pageH = 45;
+    // Страница 25×43мм (ширина × длина), вертикальная
+    const pageW = 25;
+    const pageH = 43;
     const margin = 1.5;
     const gap = 1;
 
