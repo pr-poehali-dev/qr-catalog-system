@@ -146,7 +146,6 @@ export default function ResultTable({ products, onDownloadCSV, onDownloadPDF }: 
                         size={56}
                         fgColor="#2F4F4F"
                         bgColor="#ffffff"
-                        ref={(el) => { if (el) qrRefs.current[p.article] = el; }}
                       />
                     </td>
                   </tr>
