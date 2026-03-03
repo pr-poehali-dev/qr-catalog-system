@@ -14,8 +14,10 @@ import {
   encodeArticle,
 } from "@/lib/processFiles";
 
-const PRODUCTS_URL = "https://functions.poehali.dev/2d53c3f9-ece3-4909-b127-ad2dd38059f9";
-const SETTINGS_URL = "https://functions.poehali.dev/aafea221-e9fd-48bb-8c97-bb6ea04441e9";
+const PRODUCTS_URL =
+  "https://functions.poehali.dev/2d53c3f9-ece3-4909-b127-ad2dd38059f9";
+const SETTINGS_URL =
+  "https://functions.poehali.dev/aafea221-e9fd-48bb-8c97-bb6ea04441e9";
 const BASE_URL = window.location.origin;
 
 export default function AdminPage() {
@@ -41,24 +43,32 @@ export default function AdminPage() {
   // Загружаем существующие товары и пароль при монтировании
   useEffect(() => {
     Promise.all([
-      fetch(`${PRODUCTS_URL}?all=1`).then((r) => r.json()).catch(() => ({ products: [] })),
-      fetch(SETTINGS_URL).then((r) => r.json()).catch(() => ({ password: "2024" })),
-    ]).then(([prodData, settingsData]) => {
-      setCurrentPassword(settingsData.password ?? "2024");
-      const list: ProductRow[] = (prodData.products ?? []).map((p: Record<string, string>) => ({
-        article: p.article,
-        category: p.category,
-        params: p.params,
-        price: p.price,
-        gallery: p.gallery,
-        hasPhoto: !!p.photo_url,
-        url: `${BASE_URL}/?c=${encodeArticle(p.article)}`,
-      }));
-      if (list.length > 0) {
-        setProducts(list);
-        setStep("result");
-      }
-    }).finally(() => setLoadingExisting(false));
+      fetch(`${PRODUCTS_URL}?all=1`)
+        .then((r) => r.json())
+        .catch(() => ({ products: [] })),
+      fetch(SETTINGS_URL)
+        .then((r) => r.json())
+        .catch(() => ({ password: "2024" })),
+    ])
+      .then(([prodData, settingsData]) => {
+        setCurrentPassword(settingsData.password ?? "2024");
+        const list: ProductRow[] = (prodData.products ?? []).map(
+          (p: Record<string, string>) => ({
+            article: p.article,
+            category: p.category,
+            params: p.params,
+            price: p.price,
+            gallery: p.gallery,
+            hasPhoto: !!p.photo_url,
+            url: `${BASE_URL}/?c=${encodeArticle(p.article)}`,
+          }),
+        );
+        if (list.length > 0) {
+          setProducts(list);
+          setStep("result");
+        }
+      })
+      .finally(() => setLoadingExisting(false));
   }, []);
 
   const handleSavePassword = async () => {
@@ -80,16 +90,23 @@ export default function AdminPage() {
   };
 
   const handleProcess = async () => {
-    if (!csvFile) { setError("Загрузите файл Excel или CSV"); return; }
+    if (!csvFile) {
+      setError("Загрузите файл Excel или CSV");
+      return;
+    }
     setError("");
     setLoading(true);
 
     try {
       const rows = await parseSpreadsheet(csvFile);
-      const dataRows = rows.slice(1).filter((r) => String(r[2] ?? "").trim() !== "");
+      const dataRows = rows
+        .slice(1)
+        .filter((r) => String(r[2] ?? "").trim() !== "");
 
       if (dataRows.length === 0) {
-        setError("Не найдено строк с данными. Убедитесь что: 1) артикул в столбце C (3-й), 2) данные начинаются со 2-й строки, 3) файл не пустой.");
+        setError(
+          "Не найдено строк с данными. Убедитесь что: 1) артикул в столбце C (3-й), 2) данные начинаются со 2-й строки, 3) файл не пустой.",
+        );
         setLoading(false);
         return;
       }
@@ -104,7 +121,9 @@ export default function AdminPage() {
       setStep("result");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setError(`Ошибка: ${msg}. Убедитесь что файл не повреждён и соответствует формату Excel/CSV.`);
+      setError(
+        `Ошибка: ${msg}. Убедитесь что файл не повреждён и соответствует формату Excel/CSV.`,
+      );
       console.error(e);
     }
 
@@ -112,7 +131,9 @@ export default function AdminPage() {
   };
 
   const handleDownloadPDF = async (selectedArticles: string[]) => {
-    const toprint = products.filter((p) => selectedArticles.includes(p.article));
+    const toprint = products.filter((p) =>
+      selectedArticles.includes(p.article),
+    );
     if (toprint.length === 0) return;
 
     // Страница 25×43мм (portrait: широкая сторона = вход в принтер)
@@ -165,7 +186,7 @@ export default function AdminPage() {
       // Артикул снизу: 3мм от нижнего края, по центру ширины
       doc.setFont("helvetica", "bold");
       doc.setTextColor(47, 79, 79);
-      doc.setFontSize(14);
+      doc.setFontSize(12);
       const textX = pageW / 2;
       const textY = pageH - 3;
       doc.text(product.article, textX, textY, { align: "center" });
@@ -180,8 +201,12 @@ export default function AdminPage() {
     setPriceStatus("");
     setPriceLoading(true);
     try {
-      const { updated, inserted } = await updatePrices(priceFile, (msg) => setPriceStatus(msg));
-      setPriceStatus(`Готово: обновлено ${updated}, добавлено ${inserted} товаров`);
+      const { updated, inserted } = await updatePrices(priceFile, (msg) =>
+        setPriceStatus(msg),
+      );
+      setPriceStatus(
+        `Готово: обновлено ${updated}, добавлено ${inserted} товаров`,
+      );
       setPriceFile(null);
       if (priceInputRef.current) priceInputRef.current.value = "";
     } catch (e) {
@@ -192,9 +217,15 @@ export default function AdminPage() {
 
   const handleDownloadCSV = () => {
     const header = ["Артикул", "Найдено фото", "Ссылка на карточку"];
-    const csvRows = products.map((p) => [p.article, p.hasPhoto ? "Да" : "Нет", p.url]);
+    const csvRows = products.map((p) => [
+      p.article,
+      p.hasPhoto ? "Да" : "Нет",
+      p.url,
+    ]);
     const csv = [header, ...csvRows].map((r) => r.join(";")).join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\uFEFF" + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "catalog-links.csv";
@@ -204,7 +235,10 @@ export default function AdminPage() {
   if (loadingExisting) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: "#2F4F4F", borderTopColor: "transparent" }} />
+        <div
+          className="w-8 h-8 rounded-full border-2 animate-spin"
+          style={{ borderColor: "#2F4F4F", borderTopColor: "transparent" }}
+        />
       </div>
     );
   }
@@ -214,8 +248,12 @@ export default function AdminPage() {
       <div style={{ background: "#2F4F4F" }} className="px-6 py-5">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Админ-панель</h1>
-            <p className="text-xs text-white/50 font-ibm mt-0.5">Каталог товаров с QR-кодами</p>
+            <h1 className="text-xl font-bold text-white tracking-tight">
+              Админ-панель
+            </h1>
+            <p className="text-xs text-white/50 font-ibm mt-0.5">
+              Каталог товаров с QR-кодами
+            </p>
           </div>
           {step === "result" && (
             <button
@@ -259,7 +297,8 @@ export default function AdminPage() {
               Обновить цены
             </p>
             <p className="text-xs text-gray-400 font-ibm mt-0.5">
-              Загрузите Excel/CSV — цены обновятся по артикулам. Новые артикулы добавятся в базу.
+              Загрузите Excel/CSV — цены обновятся по артикулам. Новые артикулы
+              добавятся в базу.
             </p>
           </div>
           <div className="flex gap-2 items-center flex-wrap">
@@ -287,19 +326,31 @@ export default function AdminPage() {
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium transition-all hover:opacity-90 disabled:opacity-40"
               style={{ background: "#2F4F4F" }}
             >
-              {priceLoading
-                ? <><Icon name="Loader2" size={14} className="animate-spin" /> Обновляю...</>
-                : <><Icon name="RefreshCw" size={14} /> Обновить цены</>}
+              {priceLoading ? (
+                <>
+                  <Icon name="Loader2" size={14} className="animate-spin" />{" "}
+                  Обновляю...
+                </>
+              ) : (
+                <>
+                  <Icon name="RefreshCw" size={14} /> Обновить цены
+                </>
+              )}
             </button>
           </div>
           {priceStatus && (
-            <p className="text-xs font-ibm flex items-center gap-1" style={{ color: "#2F4F4F" }}>
-              <Icon name="CheckCircle" size={12} />{priceStatus}
+            <p
+              className="text-xs font-ibm flex items-center gap-1"
+              style={{ color: "#2F4F4F" }}
+            >
+              <Icon name="CheckCircle" size={12} />
+              {priceStatus}
             </p>
           )}
           {priceError && (
             <p className="text-xs text-red-500 font-ibm flex items-center gap-1">
-              <Icon name="AlertCircle" size={12} />{priceError}
+              <Icon name="AlertCircle" size={12} />
+              {priceError}
             </p>
           )}
         </div>
@@ -324,7 +375,10 @@ export default function AdminPage() {
             <input
               type="text"
               value={newPassword}
-              onChange={(e) => { setNewPassword(e.target.value); setPasswordError(""); }}
+              onChange={(e) => {
+                setNewPassword(e.target.value);
+                setPasswordError("");
+              }}
               onKeyDown={(e) => e.key === "Enter" && handleSavePassword()}
               placeholder="Новый пароль"
               className="flex-1 px-3 py-2 rounded-lg border text-sm font-ibm outline-none transition-all focus:border-[#2F4F4F]"
@@ -336,14 +390,21 @@ export default function AdminPage() {
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium transition-all hover:opacity-90 disabled:opacity-40"
               style={{ background: "#2F4F4F" }}
             >
-              {passwordSaved
-                ? <><Icon name="Check" size={14} /> Сохранено</>
-                : <><Icon name="KeyRound" size={14} /> Сохранить</>}
+              {passwordSaved ? (
+                <>
+                  <Icon name="Check" size={14} /> Сохранено
+                </>
+              ) : (
+                <>
+                  <Icon name="KeyRound" size={14} /> Сохранить
+                </>
+              )}
             </button>
           </div>
           {passwordError && (
             <p className="text-xs text-red-500 font-ibm flex items-center gap-1">
-              <Icon name="AlertCircle" size={12} />{passwordError}
+              <Icon name="AlertCircle" size={12} />
+              {passwordError}
             </p>
           )}
         </div>
