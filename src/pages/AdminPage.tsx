@@ -170,8 +170,8 @@ export default function AdminPage() {
       doc.setFont("helvetica", "bold");
       doc.setTextColor(47, 79, 79);
       doc.setFontSize(14);
-      const textX = articleX + labelW / 2; // центр зоны артикула по горизонтали
-      const textY = pageH / 2;             // центр этикетки по вертикали
+      const textX = pageW - 3;   // 3мм от правого края (дальняя от QR сторона)
+      const textY = pageH / 2;   // центр по короткой стороне
       doc.text(product.article, textX, textY, { align: "center", angle: 90 });
     }
 
