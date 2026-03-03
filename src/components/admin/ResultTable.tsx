@@ -5,12 +5,11 @@ import { ProductRow } from "@/lib/processFiles";
 
 interface ResultTableProps {
   products: ProductRow[];
-  qrRefs: React.MutableRefObject<Record<string, HTMLCanvasElement | null>>;
   onDownloadCSV: () => void;
   onDownloadPDF: (selected: string[]) => void;
 }
 
-export default function ResultTable({ products, qrRefs, onDownloadCSV, onDownloadPDF }: ResultTableProps) {
+export default function ResultTable({ products, onDownloadCSV, onDownloadPDF }: ResultTableProps) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set(products.map((p) => p.article)));
 
   const allChecked = selected.size === products.length;
@@ -158,19 +157,6 @@ export default function ResultTable({ products, qrRefs, onDownloadCSV, onDownloa
         </div>
       </div>
 
-      {/* Скрытые полноразмерные QR для PDF */}
-      <div className="hidden">
-        {products.map((p) => (
-          <QRCodeCanvas
-            key={`pdf-${p.article}`}
-            value={p.url}
-            size={200}
-            fgColor="#2F4F4F"
-            bgColor="#ffffff"
-            ref={(el) => { if (el) qrRefs.current[p.article] = el; }}
-          />
-        ))}
-      </div>
     </div>
   );
 }

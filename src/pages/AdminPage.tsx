@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import jsPDF from "jspdf";
+import QRCode from "qrcode";
 import Icon from "@/components/ui/icon";
 import UploadStep from "@/components/admin/UploadStep";
 import ResultTable from "@/components/admin/ResultTable";
@@ -25,7 +26,6 @@ export default function AdminPage() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [zipFile, setZipFile] = useState<File | null>(null);
   const [error, setError] = useState("");
-  const qrRefs = useRef<Record<string, HTMLCanvasElement | null>>({});
 
   const [newPassword, setNewPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState<string | null>(null);
@@ -111,57 +111,65 @@ export default function AdminPage() {
     setLoading(false);
   };
 
-  const handleDownloadPDF = (selectedArticles: string[]) => {
+  const handleDownloadPDF = async (selectedArticles: string[]) => {
     const toprint = products.filter((p) => selectedArticles.includes(p.article));
     if (toprint.length === 0) return;
 
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
     const pageW = 210;
     const pageH = 297;
-    const margin = 8;
-    const qrSize = 30;
+    const qrSize = 30; // мм — такой же размер, как раньше
     const labelH = 6;
-    const cellPad = 3;
-    const gap = 2;
+    const fontSize = 10;
 
-    const cellW = qrSize + cellPad * 2;
-    const cellH = qrSize + labelH + cellPad * 2;
-    const cols = Math.floor((pageW - margin * 2 + gap) / (cellW + gap));
-    const rows = Math.floor((pageH - margin * 2 + gap) / (cellH + gap));
-    const perPage = cols * rows;
-    const stepX = cellW + gap;
-    const stepY = cellH + gap;
-    const gridW = cols * cellW + (cols - 1) * gap;
-    const gridH = rows * cellH + (rows - 1) * gap;
-    const startX = (pageW - gridW) / 2;
-    const startY = (pageH - gridH) / 2;
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+    // QR рисуется через SVG → конвертируем в PNG на offscreen canvas для векторного качества
+    // SVG → высокое разрешение canvas (300 dpi эквивалент для 30мм)
+    const DPI_SCALE = 12; // 30mm * 12 = 360px → резкий QR без пикселизации
+    const pxSize = qrSize * DPI_SCALE;
 
     for (let i = 0; i < toprint.length; i++) {
-      if (i > 0 && i % perPage === 0) doc.addPage();
-      const pos = i % perPage;
-      const col = pos % cols;
-      const row = Math.floor(pos / cols);
-      const x = startX + col * stepX;
-      const y = startY + row * stepY;
+      if (i > 0) doc.addPage();
+      const product = toprint[i];
 
-      doc.setDrawColor(180, 180, 180);
-      doc.setLineWidth(0.2);
-      doc.setLineDashPattern([1, 1], 0);
-      doc.rect(x, y, cellW, cellH);
-      doc.setLineDashPattern([], 0);
+      // Генерируем SVG QR
+      const svgStr = await QRCode.toString(product.url, {
+        type: "svg",
+        width: pxSize,
+        margin: 0,
+        color: { dark: "#2F4F4F", light: "#ffffff" },
+        errorCorrectionLevel: "M",
+      });
 
-      const canvas = qrRefs.current[toprint[i].article];
-      if (canvas) {
-        doc.addImage(canvas.toDataURL("image/png"), "PNG", x + cellPad, y + cellPad, qrSize, qrSize);
-      }
+      // SVG → canvas → dataURL
+      const svgBlob = new Blob([svgStr], { type: "image/svg+xml" });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      const imgData = await new Promise<string>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = pxSize;
+          canvas.height = pxSize;
+          const ctx = canvas.getContext("2d")!;
+          ctx.drawImage(img, 0, 0, pxSize, pxSize);
+          URL.revokeObjectURL(svgUrl);
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.src = svgUrl;
+      });
 
-      doc.setFontSize(6);
+      // Центрируем QR + артикул на странице
+      const totalH = qrSize + labelH;
+      const x = (pageW - qrSize) / 2;
+      const y = (pageH - totalH) / 2;
+
+      doc.addImage(imgData, "PNG", x, y, qrSize, qrSize);
+
+      doc.setFontSize(fontSize);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(47, 79, 79);
-      doc.text(toprint[i].article, x + cellW / 2, y + cellPad + qrSize + 4, {
+      doc.text(product.article, pageW / 2, y + qrSize + labelH - 1, {
         align: "center",
-        maxWidth: cellW - 2,
       });
     }
 
@@ -238,7 +246,6 @@ export default function AdminPage() {
         {step === "result" && (
           <ResultTable
             products={products}
-            qrRefs={qrRefs}
             onDownloadCSV={handleDownloadCSV}
             onDownloadPDF={handleDownloadPDF}
           />
