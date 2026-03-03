@@ -115,24 +115,30 @@ export default function AdminPage() {
     const toprint = products.filter((p) => selectedArticles.includes(p.article));
     if (toprint.length === 0) return;
 
-    const pageW = 210;
-    const pageH = 297;
-    const qrSize = 30; // мм — такой же размер, как раньше
-    const labelH = 6;
-    const fontSize = 10;
+    // Страница 45×27мм (длина × ширина), альбомная ориентация
+    const pageW = 45; // длинная сторона
+    const pageH = 27; // короткая сторона
+    const margin = 1.5;
+    const labelW = 7;   // ширина полосы под артикул (по правой короткой стороне)
+    const fontSize = 5;
 
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    // QR занимает короткую сторону минус отступы
+    const qrSize = pageH - margin * 2;
 
-    // QR рисуется через SVG → конвертируем в PNG на offscreen canvas для векторного качества
-    // SVG → высокое разрешение canvas (300 dpi эквивалент для 30мм)
-    const DPI_SCALE = 12; // 30mm * 12 = 360px → резкий QR без пикселизации
-    const pxSize = qrSize * DPI_SCALE;
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: [pageH, pageW], // jsPDF: [height, width] при landscape
+    });
+
+    // Высокое разрешение: 12px на мм
+    const DPI_SCALE = 12;
+    const pxSize = Math.round(qrSize * DPI_SCALE);
 
     for (let i = 0; i < toprint.length; i++) {
-      if (i > 0) doc.addPage();
+      if (i > 0) doc.addPage([pageH, pageW], "landscape");
       const product = toprint[i];
 
-      // Генерируем SVG QR
       const svgStr = await QRCode.toString(product.url, {
         type: "svg",
         width: pxSize,
@@ -141,7 +147,6 @@ export default function AdminPage() {
         errorCorrectionLevel: "M",
       });
 
-      // SVG → canvas → dataURL
       const svgBlob = new Blob([svgStr], { type: "image/svg+xml" });
       const svgUrl = URL.createObjectURL(svgBlob);
       const imgData = await new Promise<string>((resolve) => {
@@ -150,26 +155,27 @@ export default function AdminPage() {
           const canvas = document.createElement("canvas");
           canvas.width = pxSize;
           canvas.height = pxSize;
-          const ctx = canvas.getContext("2d")!;
-          ctx.drawImage(img, 0, 0, pxSize, pxSize);
+          canvas.getContext("2d")!.drawImage(img, 0, 0, pxSize, pxSize);
           URL.revokeObjectURL(svgUrl);
           resolve(canvas.toDataURL("image/png"));
         };
         img.src = svgUrl;
       });
 
-      // Центрируем QR + артикул на странице
-      const totalH = qrSize + labelH;
-      const x = (pageW - qrSize) / 2;
-      const y = (pageH - totalH) / 2;
+      // QR слева, артикул вертикально по правой короткой стороне
+      const qrX = margin;
+      const qrY = margin;
+      doc.addImage(imgData, "PNG", qrX, qrY, qrSize, qrSize);
 
-      doc.addImage(imgData, "PNG", x, y, qrSize, qrSize);
-
+      // Артикул повёрнут 90° вдоль правой короткой стороны
       doc.setFontSize(fontSize);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(47, 79, 79);
-      doc.text(product.article, pageW / 2, y + qrSize + labelH - 1, {
+      const textX = qrX + qrSize + labelW / 2 + 0.5;
+      const textY = pageH / 2;
+      doc.text(product.article, textX, textY, {
         align: "center",
+        angle: 90,
       });
     }
 
