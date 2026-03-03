@@ -168,9 +168,9 @@ export default function AdminPage() {
       // Артикул — фиксированный размер, повёрнут на 90° (по короткой стороне)
       doc.setFont("helvetica", "bold");
       doc.setTextColor(47, 79, 79);
-      doc.setFontSize(7);
+      doc.setFontSize(14);
       const textX = margin + qrSize + gap + labelW / 2;
-      const textY = margin + qrSize / 2;
+      const textY = pageH / 2;
       doc.text(product.article, textX, textY, { align: "center", angle: 90 });
     }
 
