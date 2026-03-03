@@ -165,21 +165,13 @@ export default function AdminPage() {
       // QR слева
       doc.addImage(imgData, "PNG", margin, margin, qrSize, qrSize);
 
-      // Авто-размер шрифта: растягиваем артикул на оставшуюся ширину справа
+      // Артикул — фиксированный размер, повёрнут на 90° (по короткой стороне)
       doc.setFont("helvetica", "bold");
       doc.setTextColor(47, 79, 79);
-      doc.setFontSize(10);
-      const testW = doc.getTextWidth(product.article);
-      // Размер по ширине доступной области
-      const fontByWidth = 10 * (labelW / testW);
-      // Размер по высоте (1pt = 0.3528mm)
-      const fontByHeight = (qrSize * 0.85) / 0.3528;
-      const finalSize = Math.min(fontByWidth, fontByHeight);
-
-      doc.setFontSize(finalSize);
+      doc.setFontSize(7);
       const textX = margin + qrSize + gap + labelW / 2;
-      const textY = margin + qrSize / 2 + (finalSize * 0.3528 * 0.35);
-      doc.text(product.article, textX, textY, { align: "center" });
+      const textY = margin + qrSize / 2;
+      doc.text(product.article, textX, textY, { align: "center", angle: 90 });
     }
 
     doc.save("qr-codes.pdf");
