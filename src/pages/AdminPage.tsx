@@ -191,7 +191,7 @@ export default function AdminPage() {
       doc.setFont("helvetica", "bold");
       doc.setTextColor(47, 79, 79);
       doc.setFontSize(8);
-      doc.text(product.article, textX, textY, { align: "center" });
+      doc.text(product.article, textX, textY, { align: "center", angle: 90 });
     }
 
     doc.save("qr-codes.pdf");
