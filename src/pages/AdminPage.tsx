@@ -185,7 +185,7 @@ export default function AdminPage() {
 
       // Артикул: прижат к правому краю, центр по короткой стороне
       const textX = pageW - margin;
-      const textY = pageH / 2 + 15;
+      const textY = pageH / 2 + 7;
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(8);
