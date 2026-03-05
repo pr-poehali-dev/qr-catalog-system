@@ -161,7 +161,7 @@ export default function AdminPage() {
         type: "svg",
         width: pxSize,
         margin: 0,
-        color: { dark: "#2F4F4F", light: "#ffffff" },
+        color: { dark: "#000000", light: "#ffffff" },
         errorCorrectionLevel: "M",
       });
 
@@ -185,7 +185,7 @@ export default function AdminPage() {
 
       // Артикул: прижат к правому краю, центр по короткой стороне
       const textX = pageW - margin;
-      const textY = pageH / 2;
+      const textY = pageH / 2 + 15;
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(8);
