@@ -183,13 +183,11 @@ export default function AdminPage() {
       // QR слева
       doc.addImage(imgData, "PNG", margin, margin, qrSize, qrSize);
 
-      // Артикул справа: по центру оставшейся зоны
-      const qrRight = margin + qrSize;
-      const textZoneW = pageW - qrRight - margin;
-      const textX = qrRight + textZoneW / 2;
-      const textY = pageH / 2 + 1.5;
+      // Артикул: прижат к правому краю, центр по короткой стороне
+      const textX = pageW - margin;
+      const textY = pageH / 2;
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(47, 79, 79);
+      doc.setTextColor(0, 0, 0);
       doc.setFontSize(8);
       doc.text(product.article, textX, textY, { align: "center", angle: 90 });
     }
