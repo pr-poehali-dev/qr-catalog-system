@@ -11,6 +11,7 @@ import {
   buildProducts,
   saveToServer,
   updatePrices,
+  uploadPhotosOnly,
   encodeArticle,
 } from "@/lib/processFiles";
 
@@ -26,8 +27,14 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [loadingExisting, setLoadingExisting] = useState(true);
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [zipFile, setZipFile] = useState<File | null>(null);
+  const [overwrite, setOverwrite] = useState(true);
   const [error, setError] = useState("");
+
+  const [zipFile, setZipFile] = useState<File | null>(null);
+  const [zipLoading, setZipLoading] = useState(false);
+  const [zipStatus, setZipStatus] = useState("");
+  const [zipError, setZipError] = useState("");
+  const zipInputRef = useRef<HTMLInputElement>(null);
 
   const [newPassword, setNewPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState<string | null>(null);
@@ -111,10 +118,9 @@ export default function AdminPage() {
         return;
       }
 
-      const photoMap = zipFile ? await parseZip(zipFile) : {};
-      const result = buildProducts(rows, photoMap);
+      const result = buildProducts(rows, {});
 
-      await saveToServer(result, (msg) => setError(msg));
+      await saveToServer(result, (msg) => setError(msg), overwrite);
 
       setError("");
       setProducts(result);
@@ -271,11 +277,11 @@ export default function AdminPage() {
         {step === "upload" && (
           <UploadStep
             csvFile={csvFile}
-            zipFile={zipFile}
             loading={loading}
             error={error}
+            overwrite={overwrite}
             onCsvFile={setCsvFile}
-            onZipFile={setZipFile}
+            onOverwriteChange={setOverwrite}
             onProcess={handleProcess}
           />
         )}
@@ -286,6 +292,83 @@ export default function AdminPage() {
             onDownloadPDF={handleDownloadPDF}
           />
         )}
+
+        {/* Загрузка фото автономно */}
+        <div
+          className="border rounded-xl p-5 space-y-3"
+          style={{ borderColor: "rgba(47,79,79,0.12)" }}
+        >
+          <div>
+            <p className="text-sm font-semibold" style={{ color: "#2F4F4F" }}>
+              Загрузить фотографии
+            </p>
+            <p className="text-xs text-gray-400 font-ibm mt-0.5">
+              ZIP-архив с фото — привяжутся к существующим артикулам. Уже привязанные фото будут обновлены.
+            </p>
+          </div>
+          <div className="flex gap-2 items-center flex-wrap">
+            <label
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm cursor-pointer transition-all hover:border-[#2F4F4F] font-ibm"
+              style={{ borderColor: "#c8d8d8", color: "#2F4F4F" }}
+            >
+              <Icon name="Archive" size={15} />
+              {zipFile ? zipFile.name : "Выбрать ZIP"}
+              <input
+                ref={zipInputRef}
+                type="file"
+                accept=".zip"
+                className="hidden"
+                onChange={(e) => {
+                  setZipFile(e.target.files?.[0] ?? null);
+                  setZipStatus("");
+                  setZipError("");
+                }}
+              />
+            </label>
+            <button
+              onClick={async () => {
+                if (!zipFile) return;
+                setZipError("");
+                setZipStatus("");
+                setZipLoading(true);
+                try {
+                  const { uploaded, skipped } = await uploadPhotosOnly(zipFile, (msg) => setZipStatus(msg));
+                  setZipStatus(`Готово: загружено ${uploaded}, пропущено ${skipped} фото`);
+                  setZipFile(null);
+                  if (zipInputRef.current) zipInputRef.current.value = "";
+                } catch (e) {
+                  setZipError(e instanceof Error ? e.message : String(e));
+                }
+                setZipLoading(false);
+              }}
+              disabled={!zipFile || zipLoading}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium transition-all hover:opacity-90 disabled:opacity-40"
+              style={{ background: "#2F4F4F" }}
+            >
+              {zipLoading ? (
+                <>
+                  <Icon name="Loader2" size={14} className="animate-spin" /> Загружаю...
+                </>
+              ) : (
+                <>
+                  <Icon name="ImagePlus" size={14} /> Загрузить фото
+                </>
+              )}
+            </button>
+          </div>
+          {zipStatus && (
+            <p className="text-xs font-ibm flex items-center gap-1" style={{ color: "#2F4F4F" }}>
+              <Icon name="CheckCircle" size={12} />
+              {zipStatus}
+            </p>
+          )}
+          {zipError && (
+            <p className="text-xs text-red-500 font-ibm flex items-center gap-1">
+              <Icon name="AlertCircle" size={12} />
+              {zipError}
+            </p>
+          )}
+        </div>
 
         {/* Обновление цен */}
         <div

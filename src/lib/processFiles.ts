@@ -174,7 +174,8 @@ async function compressImage(dataUrl: string, maxPx = 800, quality = 0.75): Prom
 // Отправляем товары без фото, потом фото по одному отдельными запросами
 export async function saveToServer(
   products: ProductRow[],
-  onProgress?: (msg: string) => void
+  onProgress?: (msg: string) => void,
+  overwrite = true
 ): Promise<void> {
   onProgress?.("Сохраняю товары...");
 
@@ -194,7 +195,12 @@ export async function saveToServer(
     const saveResp = await fetch(PRODUCTS_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ products: chunk, photos: {}, is_first_chunk: isFirst }),
+      body: JSON.stringify({
+        products: chunk,
+        photos: {},
+        is_first_chunk: isFirst,
+        overwrite,
+      }),
     });
     if (!saveResp.ok) {
       const err = await saveResp.json().catch(() => ({}));
@@ -211,7 +217,6 @@ export async function saveToServer(
     const p = withPhoto[i];
     onProgress?.(`Загружаю фото ${i + 1} из ${withPhoto.length}...`);
 
-    // Сжимаем перед отправкой
     const compressed = await compressImage(p.photo!);
 
     const photoResp = await fetch(PRODUCTS_URL, {
@@ -226,4 +231,48 @@ export async function saveToServer(
       console.warn(`Не удалось загрузить фото для ${p.article}: ${photoResp.status}`);
     }
   }
+}
+
+// Автономная загрузка фото из ZIP — привязывает к уже существующим артикулам в базе
+export async function uploadPhotosOnly(
+  zipFile: File,
+  onProgress?: (msg: string) => void
+): Promise<{ uploaded: number; skipped: number }> {
+  onProgress?.("Читаю архив...");
+  const photoMap = await parseZip(zipFile);
+  const entries = Object.entries(photoMap);
+  if (entries.length === 0) throw new Error("В архиве не найдено изображений");
+
+  let uploaded = 0;
+  let skipped = 0;
+
+  for (let i = 0; i < entries.length; i++) {
+    const [baseName, dataUrl] = entries[i];
+    onProgress?.(`Загружаю фото ${i + 1} из ${entries.length}...`);
+
+    // Восстанавливаем артикул: _ → /
+    const article = baseName.replace(/_/g, "/");
+
+    const compressed = await compressImage(dataUrl);
+
+    const resp = await fetch(PRODUCTS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        products: [],
+        photos: { [article]: compressed },
+        photos_only: true,
+      }),
+    });
+
+    if (resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      if (data.photo_skipped) skipped++;
+      else uploaded++;
+    } else {
+      skipped++;
+    }
+  }
+
+  return { uploaded, skipped };
 }

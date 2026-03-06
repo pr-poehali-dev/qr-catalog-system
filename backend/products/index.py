@@ -86,20 +86,52 @@ def handler(event: dict, context) -> dict:
         body = json.loads(event.get("body") or "{}")
         products = body.get("products", [])
         photos = body.get("photos", {})  # {article: "data:image/...;base64,..."}
-
-        if not products:
-            return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "no products"})}
+        overwrite = body.get("overwrite", True)
+        is_first_chunk = body.get("is_first_chunk", True)
+        photos_only = body.get("photos_only", False)  # автономная загрузка фото
 
         key_id = os.environ["AWS_ACCESS_KEY_ID"]
         conn = get_db()
         cur = conn.cursor()
 
-        # Если photos пустой — это первый запрос с полным списком товаров, очищаем таблицу
-        # Если photos непустой — это запрос с фото для одного товара, только обновляем
-        is_bulk = not photos
-        is_first_chunk = body.get("is_first_chunk", True)
+        # Режим photos_only: только привязываем/обновляем фото для существующих артикулов
+        if photos_only:
+            photo_skipped = True
+            for article, data_url in photos.items():
+                article = article.strip()
+                if not article:
+                    continue
+                article_esc = article.replace("'", "''")
+                cur.execute(f"SELECT 1 FROM \"{schema}\".products WHERE article = '{article_esc}'")
+                if not cur.fetchone():
+                    continue
+                photo_skipped = False
+                if "base64," in data_url:
+                    s3 = get_s3()
+                    header, b64data = data_url.split("base64,", 1)
+                    ext = "jpg" if "jpeg" in header else ("png" if "png" in header else "jpg")
+                    mime = "image/jpeg" if ext == "jpg" else "image/png"
+                    img_bytes = base64.b64decode(b64data)
+                    safe_article = article.replace("/", "-").replace(" ", "_")
+                    s3_key = f"catalog/{safe_article}.{ext}"
+                    s3.put_object(Bucket="files", Key=s3_key, Body=img_bytes, ContentType=mime)
+                    photo_url = f"https://cdn.poehali.dev/projects/{key_id}/bucket/{s3_key}"
+                    cur.execute(
+                        f"""UPDATE "{schema}".products SET photo_url = '{photo_url}', updated_at = NOW()
+                            WHERE article = '{article_esc}'"""
+                    )
+            conn.commit()
+            conn.close()
+            return {"statusCode": 200, "headers": CORS, "body": json.dumps({"photo_skipped": photo_skipped})}
 
-        if is_bulk and is_first_chunk:
+        if not products and not photos:
+            return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "no products"})}
+
+        # is_bulk=True если это чанк артикулов (photos пустой)
+        is_bulk = not photos
+
+        # При overwrite=True и первом чанке — очищаем таблицу
+        if is_bulk and is_first_chunk and overwrite:
             cur.execute(f'DELETE FROM "{schema}".products')
 
         for p in products:
@@ -109,7 +141,6 @@ def handler(event: dict, context) -> dict:
 
             photo_url = None
 
-            # Загружаем фото в S3 если есть
             if article in photos:
                 s3 = get_s3()
                 data_url = photos[article]
@@ -120,12 +151,7 @@ def handler(event: dict, context) -> dict:
                     img_bytes = base64.b64decode(b64data)
                     safe_article = article.replace("/", "-").replace(" ", "_")
                     s3_key = f"catalog/{safe_article}.{ext}"
-                    s3.put_object(
-                        Bucket="files",
-                        Key=s3_key,
-                        Body=img_bytes,
-                        ContentType=mime,
-                    )
+                    s3.put_object(Bucket="files", Key=s3_key, Body=img_bytes, ContentType=mime)
                     photo_url = f"https://cdn.poehali.dev/projects/{key_id}/bucket/{s3_key}"
 
             article_esc = article.replace("'", "''")
@@ -136,10 +162,19 @@ def handler(event: dict, context) -> dict:
             photo_val = f"'{photo_url}'" if photo_url else "NULL"
 
             if is_bulk:
-                cur.execute(
-                    f"""INSERT INTO "{schema}".products (article, category, params, price, gallery, photo_url)
-                        VALUES ('{article_esc}', '{category_esc}', '{params_esc}', '{price_esc}', '{gallery_esc}', {photo_val})"""
-                )
+                if overwrite:
+                    # Полная перезапись — просто INSERT (таблица уже очищена)
+                    cur.execute(
+                        f"""INSERT INTO "{schema}".products (article, category, params, price, gallery, photo_url)
+                            VALUES ('{article_esc}', '{category_esc}', '{params_esc}', '{price_esc}', '{gallery_esc}', {photo_val})"""
+                    )
+                else:
+                    # Добавить только новые — INSERT ... ON CONFLICT DO NOTHING
+                    cur.execute(
+                        f"""INSERT INTO "{schema}".products (article, category, params, price, gallery, photo_url)
+                            VALUES ('{article_esc}', '{category_esc}', '{params_esc}', '{price_esc}', '{gallery_esc}', {photo_val})
+                            ON CONFLICT (article) DO NOTHING"""
+                    )
             else:
                 # Только обновляем photo_url для существующего товара
                 cur.execute(
