@@ -34,7 +34,6 @@ function findPhotoForArticle(
   const artNorm = article.toLowerCase();
 
   for (const [key, dataUrl] of Object.entries(photoMap)) {
-    // Заменяем "_" на "/" в имени файла, чтобы сравнивать с артикулом как есть
     const keyNorm = key.toLowerCase().replace(/_/g, "/");
     if (keyNorm === artNorm) return dataUrl;
   }
@@ -79,7 +78,7 @@ export async function parseZip(file: File): Promise<Record<string, string>> {
     promises.push(
       zipFile.async("base64").then((b64) => {
         const mime = ext === "png" ? "image/png" : "image/jpeg";
-        photoMap[baseName.toLowerCase()] = `data:${mime};base64,${b64}`;
+        photoMap[baseName] = `data:${mime};base64,${b64}`;
       })
     );
   });
