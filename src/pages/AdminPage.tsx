@@ -137,9 +137,10 @@ export default function AdminPage() {
   };
 
   const handleDownloadPDF = async (selectedArticles: string[]) => {
-    const toprint = products.filter((p) =>
-      selectedArticles.includes(p.article),
-    );
+    const productMap = new Map(products.map((p) => [p.article, p]));
+    const toprint = selectedArticles
+      .map((a) => productMap.get(a))
+      .filter(Boolean) as ProductRow[];
     if (toprint.length === 0) return;
 
     // Страница 43×25мм (альбомная)
