@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "List vouchers without admin_id",
+      "method": "GET",
+      "path": "/?action=list&admin_id=0",
+      "expectedStatus": 403,
+      "expectedBody": {"error": "Нет прав"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

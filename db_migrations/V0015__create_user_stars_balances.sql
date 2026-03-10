@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS user_stars_balances (
+    user_id TEXT PRIMARY KEY,
+    balance INTEGER NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);

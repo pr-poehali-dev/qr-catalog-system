@@ -1,0 +1,10 @@
+{
+  "tests": [
+    {
+      "name": "Get payments - missing user_id",
+      "method": "GET",
+      "path": "/?user_id=",
+      "expectedStatus": 401
+    }
+  ]
+}

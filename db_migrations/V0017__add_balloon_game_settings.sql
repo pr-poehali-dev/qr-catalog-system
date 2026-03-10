@@ -1,0 +1,1 @@
+INSERT INTO game_settings (game_name, win_chance) VALUES ('balloon', 50) ON CONFLICT (game_name) DO NOTHING;

@@ -1,0 +1,1 @@
+UPDATE t_p72941365_black_screen_menu_pr.users SET display_id = 7777777 WHERE id = 1;

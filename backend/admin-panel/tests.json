@@ -1,0 +1,22 @@
+{
+  "tests": [
+    {
+      "name": "Check admin status",
+      "method": "GET",
+      "path": "/?action=check&display_id=4003134",
+      "expectedStatus": 200
+    },
+    {
+      "name": "Get players list",
+      "method": "GET",
+      "path": "/?action=players&admin_id=4003134",
+      "expectedStatus": 200
+    },
+    {
+      "name": "Check block status",
+      "method": "GET",
+      "path": "/?action=check_block&user_id=1",
+      "expectedStatus": 200
+    }
+  ]
+}

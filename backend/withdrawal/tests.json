@@ -1,0 +1,10 @@
+{
+  "tests": [
+    {
+      "name": "List withdrawals",
+      "method": "GET",
+      "path": "/?action=list&status=all",
+      "expectedStatus": 200
+    }
+  ]
+}
